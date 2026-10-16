@@ -1,0 +1,12 @@
+# Mount declaration for dsh-boot-animation.
+#
+# DSH composes its configuration tree as a stack of bundle patches. `- insert`
+# appends one loader entry: `id` identifies the row for later `id:`-targeted
+# overrides (it must be globally unique and equal the package name), and `name`
+# is the module the Host imports.
+#
+# Keep the `id:` value on a line of its own — the store pre-check reads that
+# line with a regex and requires the line to end right after the value.
+- insert:
+    - id: dsh-boot-animation
+      name: 'dsh-boot-animation'
