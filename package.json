@@ -1,8 +1,8 @@
 {
-  "name": "dsh-boot-animation",
+  "name": "dsh-boo550wt-animation",
   "version": "1.0.0",
   "private": true,
-  "description": "Play a full-screen video over the DeepSeek Harness boot screen and hand over to the shell when it ends.",
+  "description": "550W-style boot animation for DeepSeek Harness: play a full-screen video when DSH opens, and reveal the UI only after it finishes.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

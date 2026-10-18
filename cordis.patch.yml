@@ -1,4 +1,4 @@
-# Mount declaration for dsh-boot-animation.
+# Mount declaration for dsh-boo550wt-animation.
 #
 # DSH composes its configuration tree as a stack of bundle patches. `- insert`
 # appends one loader entry: `id` identifies the row for later `id:`-targeted
@@ -8,5 +8,5 @@
 # Keep the `id:` value on a line of its own — the store pre-check reads that
 # line with a regex and requires the line to end right after the value.
 - insert:
-    - id: dsh-boot-animation
-      name: 'dsh-boot-animation'
+    - id: dsh-boo550wt-animation
+      name: 'dsh-boo550wt-animation'

@@ -148,7 +148,7 @@ check("the body script is valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(table[1].text));
 });
 check("the body script mounts the documented element id", () => {
-  assert.equal(table[1].text.includes("dsh-boot-animation-layer"), true);
+  assert.equal(table[1].text.includes("dsh-boo550wt-animation-layer"), true);
 });
 check("teardown releases the route", () => {
   assert.equal(typeof dispose, "function");

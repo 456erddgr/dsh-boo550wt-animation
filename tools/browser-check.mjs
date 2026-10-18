@@ -117,7 +117,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 
 // ---------------------------------------------------------------- chromium
 
-const profile = await fs.mkdtemp(join(tmpdir(), "dsh-boot-animation-"));
+const profile = await fs.mkdtemp(join(tmpdir(), "dsh-boo550wt-animation-"));
 const chrome = spawn(
   CHROME,
   [
@@ -221,13 +221,13 @@ async function until(expression, budgetMs = 8000) {
 console.log(`chromium ${port} -> ${origin}`);
 await check("the overlay is mounted before the application handover", async () => {
   assert.equal(
-    await evaluate(`Boolean(document.getElementById("dsh-boot-animation-layer"))`),
+    await evaluate(`Boolean(document.getElementById("dsh-boo550wt-animation-layer"))`),
     true,
   );
 });
 
 const overlayState = await evaluate(`(function () {
-  var layer = document.getElementById("dsh-boot-animation-layer");
+  var layer = document.getElementById("dsh-boo550wt-animation-layer");
   var video = layer.querySelector("video");
   return {
     layerOpacity: getComputedStyle(layer).opacity,
@@ -237,7 +237,7 @@ const overlayState = await evaluate(`(function () {
     videoMuted: video.muted,
     videoPaused: video.paused,
     zIndex: layer.style.zIndex,
-    locked: document.documentElement.classList.contains("dsh-boot-animation-locked"),
+    locked: document.documentElement.classList.contains("dsh-boo550wt-animation-locked"),
     appMounted: globalThis.__DSH_APP_MOUNTED__,
     bootCardStillThere: document.querySelector("[data-dsh-boot]") !== null
   };
@@ -266,7 +266,7 @@ await check("the overlay was already up when the application took over", async (
 
 const playing = await until(
   `(function () {
-     var v = document.querySelector("#dsh-boot-animation-layer video");
+     var v = document.querySelector("#dsh-boo550wt-animation-layer video");
      return v !== null && v.readyState >= 2 && v.currentTime > 0.2;
    })()`,
   20000,
@@ -276,7 +276,7 @@ await check("chromium decodes the clip through the Range route", () => {
 });
 
 const media = await evaluate(`(function () {
-  var v = document.querySelector("#dsh-boot-animation-layer video");
+  var v = document.querySelector("#dsh-boo550wt-animation-layer video");
   return { readyState: v.readyState, duration: v.duration, currentTime: v.currentTime, error: v.error === null ? null : v.error.code };
 })()`);
 await check("the media element reports a sane duration", () => {
@@ -285,16 +285,16 @@ await check("the media element reports a sane duration", () => {
   assert.ok(media.currentTime > 0.2);
 });
 await check("playback was not blocked and did not need the muted fallback", async () => {
-  assert.equal(await evaluate(`document.querySelector("#dsh-boot-animation-layer video").paused`), false);
+  assert.equal(await evaluate(`document.querySelector("#dsh-boo550wt-animation-layer video").paused`), false);
 });
 await check("the skip hint appears after the delay", async () => {
-  assert.equal(await until(`document.querySelector(".dsh-boot-animation-hint").classList.contains("dsh-boot-animation-hint-on")`, 6000), true);
+  assert.equal(await until(`document.querySelector(".dsh-boo550wt-animation-hint").classList.contains("dsh-boo550wt-animation-hint-on")`, 6000), true);
 });
 
 await evaluate(`globalThis.__DSH_BOOT_ANIMATION__.skip()`);
 await check("skipping fades the layer out and releases the page", async () => {
-  assert.equal(await until(`document.getElementById("dsh-boot-animation-layer") === null`), true);
-  assert.equal(await evaluate(`document.documentElement.classList.contains("dsh-boot-animation-locked")`), false);
+  assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`), true);
+  assert.equal(await evaluate(`document.documentElement.classList.contains("dsh-boo550wt-animation-locked")`), false);
   assert.equal(await evaluate(`globalThis.__DSH_BOOT_ANIMATION__ === undefined`), true);
 });
 await check("the application is revealed once the overlay is gone", async () => {
@@ -305,7 +305,7 @@ await check("the application is revealed once the overlay is gone", async () => 
 // A second page load must mount a fresh overlay (idempotence guard).
 await send("Page.navigate", { url: `${origin}/` });
 await check("a reload mounts the overlay again", async () => {
-  assert.equal(await until(`Boolean(document.getElementById("dsh-boot-animation-layer"))`), true);
+  assert.equal(await until(`Boolean(document.getElementById("dsh-boo550wt-animation-layer"))`), true);
 });
 
 socket.close();

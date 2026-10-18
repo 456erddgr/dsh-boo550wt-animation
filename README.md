@@ -1,4 +1,4 @@
-# dsh-boot-animation
+# dsh-boo550wt-animation
 
 给 **DeepSeek Harness** 加一段开机动画：打开 DSH 时全屏播放一段视频，播完（或者按 `Esc`）才进入界面。
 
@@ -20,7 +20,7 @@ DSH 的插件用它自己的 CLI 安装（`desktop` 是保留 profile，由 Elec
 
 ```powershell
 # 先拿到仓库
-git clone https://github.com/456erddgr/dsh-boot-animation.git
+git clone https://github.com/456erddgr/dsh-boo550wt-animation.git
 
 # 再用 DSH 自带的 CLI 装进 desktop profile
 $env:ELECTRON_RUN_AS_NODE = '1'
@@ -34,7 +34,7 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 这条命令会做三件事：加一条 `link:` 依赖、在 `node_modules` 里建好入口、把 bundle 追加进 `dsh.profile.bundles`。
 
 > `add` 底层是 pnpm，所以也接受 git 形式：
-> `plugin --profile desktop add github:456erddgr/dsh-boot-animation`
+> `plugin --profile desktop add github:456erddgr/dsh-boo550wt-animation`
 
 ### 2. 重启 DSH
 
@@ -51,7 +51,7 @@ http://127.0.0.1:19387/boot-animation/state
 不用改代码，在 profile 的 patch 层里按行 id 覆盖配置即可：
 
 ```yaml
-- id: dsh-boot-animation
+- id: dsh-boo550wt-animation
   config:
     videoPath: "E:/成品/别的视频.mp4"   # 留空则用自带的 assets/boot.mp4
     zIndex: 2147483000
@@ -78,7 +78,7 @@ http://127.0.0.1:19387/boot-animation/state
 - **卸载**：
 
 ```powershell
-plugin --profile desktop remove dsh-boot-animation
+plugin --profile desktop remove dsh-boo550wt-animation
 ```
 
 ---

@@ -22,7 +22,7 @@ const APP = process.env.LOCALAPPDATA
 if (APP === null) throw new Error("LOCALAPPDATA is not set");
 const ASAR_DSH = join(APP, "dsh");
 const PROFILE = process.env.DSH_PROFILE_DIR ?? join(process.env.USERPROFILE ?? "", ".dsh", "profiles", "desktop");
-const PLUGIN = "dsh-boot-animation";
+const PLUGIN = "dsh-boo550wt-animation";
 
 const { loadProfileDirectory } = await import(
   pathToFileURL(join(ASAR_DSH, "node_modules", "@deepseek-ai", "dsh-app-boot", "lib", "index.js")).href
@@ -54,5 +54,5 @@ console.log(`resolved entry     ${entry}`);
 console.log(`host exports       apply=${typeof host.apply}, inject=${JSON.stringify(host.inject)}, default=${typeof host.default}`);
 
 const ok = layer !== undefined && skipped === undefined && typeof host.apply === "function";
-console.log(ok ? "\nVERIFIED: the desktop profile composes dsh-boot-animation" : "\nNOT VERIFIED");
+console.log(ok ? "\nVERIFIED: the desktop profile composes dsh-boo550wt-animation" : "\nNOT VERIFIED");
 process.exitCode = ok ? 0 : 1;
