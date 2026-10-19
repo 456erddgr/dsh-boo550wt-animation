@@ -27,8 +27,13 @@ import { STATE_ROUTE, VIDEO_ROUTE } from "../lib/media.js";
 import { apply } from "../lib/index.js";
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "..", "..");
-const CHROME = process.argv[2] ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const CHROME =
+  process.argv.slice(2).find((arg) => !arg.startsWith("--")) ??
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 if (!existsSync(CHROME)) throw new Error(`chrome not found at ${CHROME}`);
+
+/** Optional: `--shot=<path>` saves a PNG of the overlay mid-playback. */
+const SHOT = process.argv.find((arg) => arg.startsWith("--shot="))?.slice("--shot=".length);
 
 // ---------------------------------------------------------------- page + rows
 
@@ -193,6 +198,12 @@ async function evaluate(expression, awaitPromise = false) {
 
 await send("Page.enable");
 await send("Runtime.enable");
+await send("Emulation.setDeviceMetricsOverride", {
+  width: 1280,
+  height: 720,
+  deviceScaleFactor: 1,
+  mobile: false,
+});
 await send("Page.navigate", { url: `${origin}/` });
 
 const failures = [];
@@ -290,6 +301,31 @@ await check("playback was not blocked and did not need the muted fallback", asyn
 await check("the skip hint appears after the delay", async () => {
   assert.equal(await until(`document.querySelector(".dsh-boo550wt-animation-hint").classList.contains("dsh-boo550wt-animation-hint-on")`, 6000), true);
 });
+
+if (SHOT !== undefined) {
+  // Settle on a frame that is worth looking at, then capture the viewport.
+  await evaluate(
+    `(function () {
+       var v = document.querySelector("#dsh-boo550wt-animation-layer video");
+       var t = Math.min(8, Math.max(0, (v.duration || 8) - 3));
+       if (Math.abs(v.currentTime - t) < 0.3) return true;
+       return new Promise(function (r) {
+         v.addEventListener("seeked", function () { r(true); }, { once: true });
+         setTimeout(function () { r(true); }, 4000);
+         v.currentTime = t;
+       });
+     })()`,
+    true,
+  );
+  await evaluate(
+    `new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })`,
+    true,
+  );
+  const shot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+  const bytes = Buffer.from(shot.data, "base64");
+  await fs.writeFile(resolve(SHOT), bytes);
+  console.log(`  shot ${resolve(SHOT)}  (${(bytes.length / 1024).toFixed(0)} KiB)`);
+}
 
 await evaluate(`globalThis.__DSH_BOOT_ANIMATION__.skip()`);
 await check("skipping fades the layer out and releases the page", async () => {

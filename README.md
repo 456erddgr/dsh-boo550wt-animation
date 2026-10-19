@@ -10,6 +10,18 @@
 
 关键在于**交接时机**：遮罩在 DSH 结算「启动就绪」之前就已经挂上去了，所以应用是在遮罩底下正常渲染的，等动画结束再把界面让出来 —— 而不是先看到界面再盖一层。
 
+## 效果预览
+
+自带素材的分镜（2.0s / 6.0s / 12.0s / 15.0s）：
+
+![开机动画分镜：550W 标志、量子计算机控制系统、剩余进度 69%、剩余进度 100%](docs/preview.png)
+
+真实播放时的样子 —— 画面铺满窗口，右下角在 4 秒后浮现跳过提示：
+
+![实际播放画面，右下角显示「按 Esc 跳过」](docs/boot-scene.png)
+
+> 两张图都是从 `assets/boot.mp4` 里实拍的，不是效果图：用真实 Chromium 媒体栈经插件的 Range 路由解码后截帧生成（`tools/stills.mjs` 与 `tools/browser-check.mjs --shot=`）。
+
 ---
 
 ## 怎么用
@@ -101,8 +113,9 @@ plugin --profile desktop remove dsh-boo550wt-animation
 | `node tools/selftest.mjs` | Range 解析、那两条注入行、路由和各状态码 —— 走真实 HTTP |
 | `node tools/browser-check.mjs` | 真实 Chromium 里：交接前遮罩已就位、视频确实经 Range 路由解码、跳过与拆除都正常 |
 | `ELECTRON_RUN_AS_NODE=1 <DeepSeek Harness.exe> --expose-internals tools/verify-install.mjs` | 用 DSH 自己的 profile 加载器验证：bundle 被组合进去了（loaded 而不是 skipped），Host 入口能解析 |
+| `node tools/stills.mjs <目录> sheet 2 2 2 6 12 15` | 从素材里截帧或拼分镜（本机没有 ffmpeg，所以借用浏览器自己的媒体栈） |
 
-`browser-check.mjs` 通过 DevTools 协议驱动页面，并合成 Desktop 的时序（先应用注入行，再结算启动就绪）；它验证的是本包自己的页面脚本和字节服务，不是 DSH 安装本身。`verify-install.mjs` 才是"插件确实被接进 profile"的检查。
+`browser-check.mjs` 通过 DevTools 协议驱动页面，并合成 Desktop 的时序（先应用注入行，再结算启动就绪）；它验证的是本包自己的页面脚本和字节服务，不是 DSH 安装本身。`verify-install.mjs` 才是"插件确实被接进 profile"的检查。加 `--shot=<路径>` 可以顺便截一张播放中的画面。
 
 ---
 
@@ -118,6 +131,8 @@ plugin --profile desktop remove dsh-boo550wt-animation
 ## English
 
 Plays a video full-screen while DeepSeek Harness boots, then hands the window to the shell. The bundled clip is a 550W-style startup sequence (16.6 s, 1024×576, H.264 + AAC, 12.1 MB).
+
+Screenshots above are real captures: frames decoded from the clip through the plugin's own Range route (`docs/preview.png`, `docs/boot-scene.png`).
 
 The plugin is Host-only — no client module, no build step — and uses two mechanisms from the profile's webserver: injected `webserver/index-inject` rows (one `style`, one body `script`), which DSH applies before `__DSH_BOOT_READY__` settles and before the client module loader starts; and a `prefix` route at `/boot-animation` that streams the clip with `Range`, `HEAD` and `416` handling. The browser path and the Desktop path consume the same injection rows, so there is no branching.
 
