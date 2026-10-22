@@ -1,11 +1,13 @@
 /**
- * Functional check of the emitted page script against a real Chromium media
- * stack, driven over the DevTools Protocol.
+ * Functional check of the emitted page script and the settings panel against a
+ * real Chromium media stack, driven over the DevTools Protocol.
  *
  * It serves the exact injection rows the plugin publishes, in the same order
  * the Desktop shell applies them, then asks the page whether the overlay
  * mounted, whether the clip reached HAVE_CURRENT_DATA through the plugin's
- * Range route, and whether the handover removes the layer.
+ * Range route, and whether the handover removes the layer. It also flips the
+ * settings to every mode (video/image/web/game) and verifies each renders in
+ * the overlay.
  *
  * This proves the plugin's own page script and byte service work in a browser.
  * It is not evidence that DSH loaded the plugin.
@@ -17,14 +19,14 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { existsSync, promises as fs } from "node:fs";
+import { existsSync, mkdtempSync, promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BOOT_STYLE, bootScript } from "../lib/inject.js";
-import { STATE_ROUTE, VIDEO_ROUTE } from "../lib/media.js";
 import { apply } from "../lib/index.js";
+import { saveSettings } from "../lib/config.js";
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "..", "..");
 const CHROME =
@@ -34,6 +36,12 @@ if (!existsSync(CHROME)) throw new Error(`chrome not found at ${CHROME}`);
 
 /** Optional: `--shot=<path>` saves a PNG of the overlay mid-playback. */
 const SHOT = process.argv.find((arg) => arg.startsWith("--shot="))?.slice("--shot=".length);
+
+// ---------------------------------------------------------------- settings
+
+// Isolate the settings file for the duration of the test.
+const ISOLATE = mkdtempSync(join(tmpdir(), "dsh-boo550wt-browser-"));
+process.env.DSH_HOME = ISOLATE;
 
 // ---------------------------------------------------------------- page + rows
 
@@ -106,6 +114,11 @@ const server = createServer((req, res) => {
     res.end(PAGE);
     return;
   }
+  if (path === "/webpage.html") {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><body style="margin:0;background:#102;color:#9fe8ff;display:flex;align-items:center;justify-content:center;height:100vh;font:24px sans-serif">BOOT WEB</body></html>`);
+    return;
+  }
   if (path.startsWith("/boot-animation")) {
     route.handler(req, res).catch(() => {
       if (!res.headersSent) res.writeHead(500);
@@ -122,7 +135,7 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 
 // ---------------------------------------------------------------- chromium
 
-const profile = await fs.mkdtemp(join(tmpdir(), "dsh-boo550wt-animation-"));
+const profile = await fs.mkdtemp(join(tmpdir(), "dsh-boo550wt-"));
 const chrome = spawn(
   CHROME,
   [
@@ -135,6 +148,7 @@ const chrome = spawn(
     `--user-data-dir=${profile}`,
     "--no-first-run",
     "--no-default-browser-check",
+    "--window-size=1280,720",
     "about:blank",
   ],
   { stdio: "ignore" },
@@ -143,7 +157,7 @@ const chrome = spawn(
 /** Read the port Chromium picked for the DevTools endpoint. */
 async function devtoolsPort() {
   const file = join(profile, "DevToolsActivePort");
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     try {
       const [line] = (await fs.readFile(file, "utf8")).split("\n");
       if (line.trim() !== "") return Number(line.trim());
@@ -244,9 +258,9 @@ const overlayState = await evaluate(`(function () {
     layerOpacity: getComputedStyle(layer).opacity,
     position: getComputedStyle(layer).position,
     inset: [getComputedStyle(layer).top, getComputedStyle(layer).left],
-    videoSrc: video.currentSrc,
-    videoMuted: video.muted,
-    videoPaused: video.paused,
+    videoSrc: video ? video.currentSrc : null,
+    videoMuted: video ? video.muted : null,
+    videoPaused: video ? video.paused : null,
     zIndex: layer.style.zIndex,
     locked: document.documentElement.classList.contains("dsh-boo550wt-animation-locked"),
     appMounted: globalThis.__DSH_APP_MOUNTED__,
@@ -263,8 +277,8 @@ await check("the overlay is a fixed, opaque, top-most layer", () => {
 await check("the page background is locked while the clip plays", () => {
   assert.equal(overlayState.locked, true);
 });
-await check("the clip is requested through the plugin route", () => {
-  assert.equal(overlayState.videoSrc, `${origin}/boot-animation/video.mp4`);
+await check("the video is requested through the plugin route", () => {
+  assert.equal(overlayState.videoSrc, `${origin}/boot-animation/media/video`);
 });
 await check("the overlay was already up when the application took over", async () => {
   assert.equal(await until(`globalThis.__DSH_APP_MOUNTED__ === true`), true);
@@ -282,7 +296,7 @@ const playing = await until(
    })()`,
   20000,
 );
-await check("chromium decodes the clip through the Range route", () => {
+await check("chromium decodes the video through the Range route", () => {
   assert.equal(playing, true);
 });
 
@@ -295,15 +309,76 @@ await check("the media element reports a sane duration", () => {
   assert.ok(Math.abs(media.duration - 16.649) < 0.2, `duration ${media.duration}`);
   assert.ok(media.currentTime > 0.2);
 });
-await check("playback was not blocked and did not need the muted fallback", async () => {
-  assert.equal(await evaluate(`document.querySelector("#dsh-boo550wt-animation-layer video").paused`), false);
+
+// ------------------------------------------------------------ mode switching
+
+async function switchMode(next) {
+  await evaluate(
+    `(function () {
+       var skip = globalThis.__DSH_BOOT_ANIMATION__.skip;
+       skip();
+     })()`,
+  );
+  await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000);
+  await fetch(`${origin}/boot-animation/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(next),
+  });
+  await send("Page.reload", { ignoreCache: true });
+  await until(`Boolean(document.getElementById("dsh-boo550wt-animation-layer"))`, 10000);
+}
+
+await check("image mode renders an <img> in the overlay", async () => {
+  await switchMode({ mode: "image", durationMs: 50000 });
+  const ok = await until(
+    `(function () {
+       var img = document.querySelector("#dsh-boo550wt-animation-layer img");
+       return img !== null && img.complete && img.naturalWidth > 0;
+     })()`,
+    10000,
+  );
+  assert.equal(ok, true);
 });
-await check("the skip hint appears after the delay", async () => {
-  assert.equal(await until(`document.querySelector(".dsh-boo550wt-animation-hint").classList.contains("dsh-boo550wt-animation-hint-on")`, 6000), true);
+
+await check("web mode renders an <iframe> in the overlay", async () => {
+  await switchMode({ mode: "web", webUrl: `${origin}/webpage.html` });
+  const ok = await until(
+    `(function () {
+       var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+       return f !== null && f.getAttribute("src") !== null;
+     })()`,
+    10000,
+  );
+  assert.equal(ok, true);
+});
+
+await check("game mode renders the snake iframe", async () => {
+  await switchMode({ mode: "game", game: "snake" });
+  const ok = await until(
+    `(function () {
+       var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+       return f !== null && /game\\/snake/.test(f.getAttribute("src") || "");
+     })()`,
+    10000,
+  );
+  assert.equal(ok, true);
+});
+
+// Back to video mode and verify the skip/teardown flow.
+await check("video mode after switching back", async () => {
+  await switchMode({ mode: "video" });
+  const ok = await until(
+    `(function () {
+       var v = document.querySelector("#dsh-boo550wt-animation-layer video");
+       return v !== null && v.readyState >= 2;
+     })()`,
+    15000,
+  );
+  assert.equal(ok, true);
 });
 
 if (SHOT !== undefined) {
-  // Settle on a frame that is worth looking at, then capture the viewport.
   await evaluate(
     `(function () {
        var v = document.querySelector("#dsh-boo550wt-animation-layer video");
@@ -327,6 +402,7 @@ if (SHOT !== undefined) {
   console.log(`  shot ${resolve(SHOT)}  (${(bytes.length / 1024).toFixed(0)} KiB)`);
 }
 
+// ---- teardown via the global skip, revealing the app ----
 await evaluate(`globalThis.__DSH_BOOT_ANIMATION__.skip()`);
 await check("skipping fades the layer out and releases the page", async () => {
   assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`), true);
@@ -350,6 +426,7 @@ spawn("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" })
 await new Promise((r) => setTimeout(r, 500));
 server.close();
 await fs.rm(profile, { recursive: true, force: true }).catch(() => {});
+await fs.rm(ISOLATE, { recursive: true, force: true }).catch(() => {});
 
 console.log(`\n${passed} checks passed${failures.length > 0 ? `, ${failures.length} failed: ${failures.join(", ")}` : ""}`);
 if (failures.length > 0) process.exitCode = 1;

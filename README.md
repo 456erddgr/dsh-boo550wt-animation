@@ -1,11 +1,18 @@
 # dsh-boo550wt-animation
 
-给 **DeepSeek Harness** 加一段开机动画：打开 DSH 时全屏播放一段视频，播完（或者按 `Esc`）才进入界面。
+给 **DeepSeek Harness** 加一段开机动画：打开 DSH 时全屏展示一段内容，播完（或者按 `Esc`）才进入界面。
 
-> 自带素材 `assets/boot.mp4` 是一段 **550W 风格**的启动动画 —— 16.6 秒、1024×576、H.264 + AAC、12.1 MB。
+支持四种模式，全部可以在设置面板里改：
+
+| 模式 | 内容 | 结束方式 |
+| --- | --- | --- |
+| `video` | 视频（默认：自带的 550W 风格动画，16.6 秒） | 播完自动进入 |
+| `image` | 图片 | 显示 `durationMs` 后进入 |
+| `web` | 网页（URL 或本地 HTML 文件） | 页面发完成消息，或超时 |
+| `game` | 内置小游戏（贪吃蛇） | 通关后进入，也可随时 Esc |
 
 ```
-打开 DSH  ─▶  黑底 + 视频  ─▶  播完 / 按 Esc  ─▶  淡出  ─▶  正常界面
+打开 DSH  ─▶  黑底 + 动画  ─▶  播完 / 通关 / 按 Esc  ─▶  淡出  ─▶  正常界面
 ```
 
 关键在于**交接时机**：遮罩在 DSH 结算「启动就绪」之前就已经挂上去了，所以应用是在遮罩底下正常渲染的，等动画结束再把界面让出来 —— 而不是先看到界面再盖一层。
@@ -20,9 +27,11 @@
 
 ![实际播放画面，右下角显示「按 Esc 跳过」](docs/boot-scene.png)
 
-> 两张图都是从 `assets/boot.mp4` 里实拍的，不是效果图：用真实 Chromium 媒体栈经插件的 Range 路由解码后截帧生成（`tools/stills.mjs` 与 `tools/browser-check.mjs --shot=`）。
+内置贪吃蛇小游戏：
 
----
+![贪吃蛇：通关即进入](docs/snake.png)
+
+> 截图都是从真实播放里截的，不是效果图：用 Chromium 媒体栈经插件的路由解码后截帧生成（`tools/stills.mjs` 与 `tools/browser-check.mjs --shot=`）。
 
 ## 怎么用
 
@@ -50,43 +59,25 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 
 ### 2. 重启 DSH
 
-**必须重启。** Host 半侧的代码只在 DSH 启动时被 import 一次，热更新不会加载它。
+**必须重启。** Host 半侧的代码只在 DSH 启动时被 import 一次，热更新不会加载它。设置面板的修改在重启后生效。
 
-重启后可以自查 —— 浏览器打开这个地址，返回 JSON 就说明 Host 半侧已经起来了：
+### 3. 在设置里改开机动画
 
-```
-http://127.0.0.1:19387/boot-animation/state
-```
+重启后，打开 **设置 → 开机动画**，可以改：
 
-### 3. 换视频 / 调参数
+- **类型**：视频 / 图片 / 网页 / 小游戏
+- **视频 / 图片路径**：留空用自带素材，填绝对路径用你自己的文件
+- **网页地址**：填 URL，或本地 HTML 文件绝对路径
+- **小游戏**：目前内置贪吃蛇
+- **显示时长**（图片/网页用）
+- **硬上限**（秒）：任何内容最多播这么久，绝不让窗口卡死
+- **淡出时长**、**提示延迟**、**跳过提示文字**
 
-不用改代码，在 profile 的 patch 层里按行 id 覆盖配置即可：
-
-```yaml
-- id: dsh-boo550wt-animation
-  config:
-    videoPath: "E:/成品/别的视频.mp4"   # 留空则用自带的 assets/boot.mp4
-    zIndex: 2147483000
-    fadeMs: 380
-```
-
-| 字段 | 默认值 | 含义 |
-| --- | --- | --- |
-| `enabled` | `true` | 设 `false` 可以临时停用而不卸载 |
-| `videoPath` | `""` | 换成别的视频；留空 = 用自带素材 |
-| `zIndex` | `2147483000` | 遮罩层级 |
-| `maxSeconds` | `120` | 硬上限，卡死的视频也绝不会锁住窗口 |
-| `graceMs` | `1500` | 上报时长之外再宽限多久才触发上限 |
-| `fadeMs` | `380` | 交接时的淡出时长 |
-| `hintDelayMs` | `4000` | 多久之后出现跳过提示 |
-| `skipHint` | `按 Esc 跳过` | 提示文字 |
-| `silentHint` | `按 Esc 跳过 · 点击开启声音` | 被降级成静音时显示 |
-| `blockedHint` | `点击以播放开机动画` | 自动播放被彻底拦截时显示 |
-| `errorHint` | `开机动画不可用` | 视频解不开时显示 |
+改完点保存，下次启动生效。设置存在 `~/.dsh/boot-animation-settings.json`。
 
 ### 4. 跳过 / 卸载
 
-- **跳过**：随时按 `Esc`。如果浏览器不给出声自动播放，插件会先退回静音并在角上说明，同时装一个点击/按键处理器，让你点一下就能带着声音重来。视频彻底解不开时，遮罩 0.9 秒后放弃，正常界面照常出现。
+- **跳过**：随时按 `Esc`。视频被浏览器静音拦截时会退回静音并在角上说明，点一下可带着声音重来。内容解不开时，遮罩 0.9 秒后放弃，正常界面照常出现。
 - **卸载**：
 
 ```powershell
@@ -97,25 +88,21 @@ plugin --profile desktop remove dsh-boo550wt-animation
 
 ## 原理
 
-这个插件是 **Host-only**（只有 `lib/index.js`），没有 client 模块，也没有构建步骤。它只用 profile 自带的 webserver 的两个机制：
+这个插件是 **Host-only + 浏览器设置面板**：
 
-1. **`webserver/index-inject` 注入行** —— 一条 `style`、一条 body `script`。DSH 会把注入行应用到页面上，时机**早于** `__DSH_BOOT_READY__` 结算、也早于客户端模块加载器启动，这正是遮罩能成为屏幕上第一个东西的原因。浏览器路径（注入行被渲染进服务的 HTML）和 Desktop 路径（注入行经 IPC 交给页面自己应用）消费的是同一批行，所以代码不需要分支。
-2. **`/boot-animation` 下的 `prefix` 路由** —— 带 `Range`、`HEAD`、`416` 处理，交给浏览器自己的媒体栈去解码。页面从自己被服务的同源地址去请求它；Desktop 壳会把该请求连同会话 cookie 转发给 Host。
+1. **`webserver/index-inject` 注入行** —— 一条 `style`、一条 body `script`。DSH 会把注入行应用到页面上，时机**早于** `__DSH_BOOT_READY__` 结算、也早于客户端模块加载器启动，这正是遮罩能成为屏幕上第一个东西的原因。脚本启动时拉一次 `/config`，用你最新保存的设置来决定显示什么。
+2. **`/boot-animation` 下的路由** —— 带 `Range`、`HEAD`、`416` 处理，交给浏览器自己的媒体栈去解码；配置、图片、视频、网页、小游戏都是经同一套路由提供的。
+3. **设置面板** —— 通过 `settings.section` slot 挂进 DSH 设置界面，读写同一份 `/config`。
 
 客户端脚本是把一个真函数 `toString()` 出来的（`lib/inject.js`），所以注入的 JavaScript 是当普通源码被解析和检查的，也保证不含尖括号和 `</script`。
-
----
 
 ## 自检工具
 
 | 命令 | 能证明什么 |
 | --- | --- |
-| `node tools/selftest.mjs` | Range 解析、那两条注入行、路由和各状态码 —— 走真实 HTTP |
-| `node tools/browser-check.mjs` | 真实 Chromium 里：交接前遮罩已就位、视频确实经 Range 路由解码、跳过与拆除都正常 |
+| `node tools/selftest.mjs` | 配置读写、注入行、Range 服务（视频+图片）、游戏页面、路由与状态码 —— 33 项 |
+| `node tools/browser-check.mjs` | 真实 Chromium 里：视频/图片/网页/小游戏四种模式 + 跳过 + 拆除 —— 14 项 |
 | `ELECTRON_RUN_AS_NODE=1 <DeepSeek Harness.exe> --expose-internals tools/verify-install.mjs` | 用 DSH 自己的 profile 加载器验证：bundle 被组合进去了（loaded 而不是 skipped），Host 入口能解析 |
-| `node tools/stills.mjs <目录> sheet 2 2 2 6 12 15` | 从素材里截帧或拼分镜（本机没有 ffmpeg，所以借用浏览器自己的媒体栈） |
-
-`browser-check.mjs` 通过 DevTools 协议驱动页面，并合成 Desktop 的时序（先应用注入行，再结算启动就绪）；它验证的是本包自己的页面脚本和字节服务，不是 DSH 安装本身。`verify-install.mjs` 才是"插件确实被接进 profile"的检查。加 `--shot=<路径>` 可以顺便截一张播放中的画面。
 
 ---
 
@@ -124,25 +111,5 @@ plugin --profile desktop remove dsh-boo550wt-animation
 - 视频的 `moov` atom 在文件尾部，所以首帧之前浏览器要把整个 12 MB 抓下来；走 loopback 基本无感。素材如果真的变大，用 `-movflags +faststart` 重新封装就能消掉这个等待。
 - 跳过和硬上限是刻意的设计：开机动画**永远**不应该有能力锁死窗口。
 - 遮罩追加到 `body`，从不碰 `#root`，所以 React 的挂载点不受影响；拆除时它会连同自己的监听器和定时器一起收干净。
-- `assets/boot.mp4` 是本仓库自带的示例素材，只作 550W 风味参考，与《流浪地球》官方无关。如果要公开分发本仓库，请自行确认你对该素材拥有相应权利。
-
----
-
-## English
-
-Plays a video full-screen while DeepSeek Harness boots, then hands the window to the shell. The bundled clip is a 550W-style startup sequence (16.6 s, 1024×576, H.264 + AAC, 12.1 MB).
-
-Screenshots above are real captures: frames decoded from the clip through the plugin's own Range route (`docs/preview.png`, `docs/boot-scene.png`).
-
-The plugin is Host-only — no client module, no build step — and uses two mechanisms from the profile's webserver: injected `webserver/index-inject` rows (one `style`, one body `script`), which DSH applies before `__DSH_BOOT_READY__` settles and before the client module loader starts; and a `prefix` route at `/boot-animation` that streams the clip with `Range`, `HEAD` and `416` handling. The browser path and the Desktop path consume the same injection rows, so there is no branching.
-
-Install with DSH's own CLI (it manages the reserved `desktop` profile), then **restart DSH** — Host code is only imported at boot:
-
-```powershell
-$env:ELECTRON_RUN_AS_NODE = '1'
-& "<DeepSeek Harness.exe>" --expose-internals `
-  "<resources>\app.asar\dsh\node_modules\@deepseek-ai\dsh-desktop-host\lib\cli.js" `
-  plugin --profile desktop add "<this directory>"
-```
-
-Escape always skips. Playback that is refused with sound retries muted and says so; a clip that cannot be decoded gives up after 0.9 s. `maxSeconds` is a hard ceiling so a boot animation can never trap the window. See the config table above for every field.
+- `web` 模式加载的是**你给的**网页：如果你在设置里填了外网 URL，开机时 DSH 会去访问它。这是有意为之的能力，不是默认行为（默认是视频）。
+- `assets/boot.mp4` 与本仓库的示例素材只作 550W 风味参考，与《流浪地球》官方无关。如果要公开分发本仓库，请自行确认你对该素材拥有相应权利。

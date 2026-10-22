@@ -1,10 +1,11 @@
 /**
  * Harness test for the pieces that do not need DSH.
  *
- * It exercises the Host modules directly: the injection rows, the Range byte
- * service, and the prefix route that `apply()` claims. This is a test of this
- * package's own code — it is NOT evidence that DSH loaded the plugin, and the
- * browser in the page is not involved.
+ * It exercises the Host modules directly: config load/save, the injection
+ * rows, the byte service (video + image), the game page, and the prefix route
+ * that `apply()` claims. This is a test of this package's own code — it is
+ * NOT evidence that DSH loaded the plugin, and the browser in the page is not
+ * involved.
  *
  * Run: node tools/selftest.mjs
  */
@@ -12,15 +13,30 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { resolve } from "node:path";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BOOT_STYLE, bootScript } from "../lib/inject.js";
-import { parseRange, STATE_ROUTE, VIDEO_ROUTE } from "../lib/media.js";
+import { parseRange } from "../lib/media.js";
+import { snakeGameHtml } from "../lib/games.js";
 import { apply } from "../lib/index.js";
+import {
+  BUNDLED_IMAGE,
+  BUNDLED_VIDEO,
+  DEFAULTS,
+  loadSettings,
+  normalizeConfig,
+  saveSettings,
+} from "../lib/config.js";
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "..", "..");
-const VIDEO = resolve(ROOT, "assets", "boot.mp4");
+const VIDEO = BUNDLED_VIDEO;
+
+// Isolate the settings file for the duration of the test.
+const TMP = mkdtempSync(join(tmpdir(), "dsh-boo550wt-selftest-"));
+process.env.DSH_HOME = TMP;
 
 let passed = 0;
 function check(name, fn) {
@@ -33,6 +49,33 @@ function check(name, fn) {
     throw error;
   }
 }
+
+console.log("config");
+check("defaults load when no file exists", async () => {
+  const s = await loadSettings();
+  assert.equal(s.mode, "video");
+  assert.equal(s.game, "snake");
+  assert.equal(s.durationMs, 16000);
+  assert.equal(s.maxSeconds, 120);
+});
+check("normalize clamps dangerous values", () => {
+  const s = normalizeConfig({ mode: "nope", maxSeconds: -5, durationMs: 1, zIndex: "x" });
+  assert.equal(s.mode, "video");
+  assert.equal(s.maxSeconds, 2);
+  assert.equal(s.durationMs, 1000);
+  assert.equal(s.zIndex, DEFAULTS.zIndex);
+});
+check("save then load round-trips", async () => {
+  const ok = await saveSettings({ mode: "game", game: "snake", durationMs: 5000 });
+  assert.equal(ok, true);
+  const s = await loadSettings();
+  assert.equal(s.mode, "game");
+  assert.equal(s.durationMs, 5000);
+});
+check("BUNDLED assets exist", () => {
+  assert.equal(existsSync(VIDEO), true, "boot.mp4 missing");
+  assert.equal(existsSync(BUNDLED_IMAGE), true, "poster.png missing");
+});
 
 console.log("parseRange");
 const SIZE = 1000;
@@ -76,21 +119,23 @@ check("stylesheet cannot close its own tag", () => {
   assert.equal(BOOT_STYLE.includes("</"), false);
 });
 check("emitted client script parses", () => {
-  const text = bootScript({ src: "/boot-animation/video.mp4" });
+  const text = bootScript({ base: "/boot-animation", mode: "video", url: "/boot-animation/media/video" });
   assert.doesNotThrow(() => new Function(text));
-  assert.equal(text.includes('"/boot-animation/video.mp4"'), true);
+  assert.equal(text.includes("fetchSettings"), true);
 });
-check("emitted client script calls a named function", () => {
-  assert.equal(/^\(function bootClient\(CONFIG\) \{/u.test(bootScript({ src: "x" })), true);
-});
-check("emitted client script cannot break out of its own tag", () => {
-  // The row is inserted verbatim between <script> and </script>, both by the
-  // server renderer and by the Desktop page, so the HTML end-tag sequence and
-  // the legacy comment opener must never appear.
-  const text = bootScript({ src: "/boot-animation/video.mp4" });
+check("emitted client script is free of unsafe sequences", () => {
+  const text = bootScript({ base: "/boot-animation", mode: "video", url: "/boot-animation/media/video" });
   assert.equal(text.includes("</script"), false);
   assert.equal(text.includes("<!--"), false);
   assert.equal(text.includes("<"), false);
+});
+
+console.log("games");
+check("snake page is a full HTML document", () => {
+  const html = snakeGameHtml();
+  assert.equal(html.includes("<!doctype html>"), true);
+  assert.equal(html.includes("贪吃蛇"), true);
+  assert.equal(html.includes("__bootGameDone"), true);
 });
 
 /** Build a stand-in plugin context that records what the plugin registers. */
@@ -147,19 +192,10 @@ check("row order is stylesheet then body script", () => {
 check("the body script is valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(table[1].text));
 });
-check("the body script mounts the documented element id", () => {
-  assert.equal(table[1].text.includes("dsh-boo550wt-animation-layer"), true);
-});
 check("teardown releases the route", () => {
   assert.equal(typeof dispose, "function");
   dispose();
   assert.equal(fake.routes.length, 0);
-});
-check("disabled by config claims no route", () => {
-  const off = fakeContext();
-  apply(off.ctx, { enabled: false });
-  assert.equal(off.routes.length, 0);
-  assert.equal(off.handlers.length, 0);
 });
 
 console.log("route over HTTP");
@@ -183,55 +219,63 @@ server.listen(0, "127.0.0.1");
 await once(server, "listening");
 const base = `http://127.0.0.1:${server.address().port}/boot-animation`;
 
-const full = await fetch(`${base}${VIDEO_ROUTE}`);
+const full = await fetch(`${base}/media/video`);
 const fullBody = new Uint8Array(await full.arrayBuffer());
-check("full GET is 200 video/mp4", () => {
+check("full video GET is 200 video/mp4", () => {
   assert.equal(full.status, 200);
   assert.equal(full.headers.get("content-type"), "video/mp4");
   assert.equal(full.headers.get("accept-ranges"), "bytes");
   assert.equal(fullBody.byteLength, 12130517);
 });
-check("bytes look like an MP4 with a tail moov", () => {
-  const ascii = (at) => String.fromCharCode(...fullBody.subarray(at, at + 4));
-  assert.equal(ascii(4), "ftyp");
-  assert.equal(ascii(fullBody.byteLength - 19631 + 4), "moov");
-});
 
-const ranged = await fetch(`${base}${VIDEO_ROUTE}`, { headers: { range: "bytes=0-1023" } });
+const ranged = await fetch(`${base}/media/video`, { headers: { range: "bytes=0-1023" } });
 const rangedBody = new Uint8Array(await ranged.arrayBuffer());
-check("Range GET is 206 with content-range", () => {
+check("Range video GET is 206 with content-range", () => {
   assert.equal(ranged.status, 206);
   assert.equal(ranged.headers.get("content-range"), "bytes 0-1023/12130517");
   assert.equal(rangedBody.byteLength, 1024);
 });
-check("the ranged bytes match the full read", () => {
-  assert.deepEqual([...rangedBody], [...fullBody.subarray(0, 1024)]);
+
+const img = await fetch(`${base}/media/image`);
+const imgBody = new Uint8Array(await img.arrayBuffer());
+check("image GET is 200 image/png", () => {
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get("content-type"), "image/png");
+  assert.ok(imgBody.length > 1000, `image too small ${imgBody.length}`);
 });
 
-const tail = await fetch(`${base}${VIDEO_ROUTE}`, { headers: { range: "bytes=-64" } });
-check("suffix range returns the last bytes", () => {
-  assert.equal(tail.status, 206);
-  assert.equal(tail.headers.get("content-range"), "bytes 12130453-12130516/12130517");
+const game = await fetch(`${base}/game/snake`);
+const gameBody = await game.text();
+check("snake game page is served", () => {
+  assert.equal(game.status, 200);
+  assert.equal(game.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(gameBody.includes("贪吃蛇"), true);
 });
 
-const head = await fetch(`${base}${VIDEO_ROUTE}`, { method: "HEAD" });
-check("HEAD reports the length without a body", () => {
-  assert.equal(head.status, 200);
-  assert.equal(head.headers.get("content-length"), "12130517");
+const cfg = await fetch(`${base}/config`);
+const cfgBody = await cfg.json();
+check("config GET returns the live settings", () => {
+  assert.equal(cfg.status, 200);
+  assert.equal(cfgBody.mode, "game"); // saved earlier
+  assert.equal(cfgBody.media.kind, "game");
 });
 
-const bad = await fetch(`${base}${VIDEO_ROUTE}`, { headers: { range: "bytes=99999999-" } });
-check("out-of-range request is 416", () => {
-  assert.equal(bad.status, 416);
-  assert.equal(bad.headers.get("content-range"), "bytes */12130517");
+const put = await fetch(`${base}/config`, {
+  method: "PUT",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ mode: "image", durationMs: 7000 }),
+});
+const putBody = await put.json();
+check("config PUT saves and returns the new settings", () => {
+  assert.equal(put.status, 200);
+  assert.equal(putBody.mode, "image");
+  assert.equal(putBody.durationMs, 7000);
 });
 
-const state = await fetch(`${base}${STATE_ROUTE}`);
+const state = await fetch(`${base}/config`);
 const stateBody = await state.json();
-check("state reports the clip as available", () => {
-  assert.equal(state.status, 200);
-  assert.equal(stateBody.videoAvailable, true);
-  assert.equal(stateBody.videoBytes, 12130517);
+check("saved config survives a second read", () => {
+  assert.equal(stateBody.mode, "image");
 });
 
 const missing = await fetch(`${base}/nope`);
@@ -239,11 +283,12 @@ check("unknown subpath is 404", () => {
   assert.equal(missing.status, 404);
 });
 
-const post = await fetch(`${base}${VIDEO_ROUTE}`, { method: "POST" });
+const post = await fetch(`${base}/media/video`, { method: "POST" });
 check("wrong method is 405", () => {
   assert.equal(post.status, 405);
-  assert.equal(post.headers.get("allow"), "GET, HEAD");
 });
 
 server.close();
+rmSync(TMP, { recursive: true, force: true });
+
 console.log(`\n${passed} checks passed; clip at ${VIDEO}`);

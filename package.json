@@ -1,23 +1,31 @@
 {
   "name": "dsh-boo550wt-animation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "550W-style boot animation for DeepSeek Harness: play a full-screen video when DSH opens, and reveal the UI only after it finishes.",
+  "description": "Customizable boot animation for DeepSeek Harness: video, image, webpage or a built-in mini game full-screen at startup, with a Settings panel.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "files": [
     "lib",
     "assets",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "docs"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
     }
   }
 }
