@@ -48,15 +48,25 @@
 
 ![实际播放画面，右下角显示「按 Esc 跳过」](docs/boot-scene.png)
 
-内置贪吃蛇小游戏：
+### 六款内置小游戏
 
-![贪吃蛇：通关即进入](docs/snake.png)
+**行星发动机 3D**（流浪地球）—— 真实地球贴图、赤道发动机群、太空电梯、银河背景：
 
-流浪地球主题的「行星发动机」：三路参数都压在绿区，撑满 3 秒点火成功。
+![行星发动机 3D：地球、发动机群与三路点火仪表](docs/wandering-earth.png)
 
-![行星发动机：转向/姿态/推力三路仪表，右下角可直接跳过](docs/wandering-earth.png)
+| 贪吃蛇 | 2048 |
+| --- | --- |
+| ![贪吃蛇：吃到豆子后蛇身变长](docs/snake.png) | ![2048：滑动合并数字](docs/2048.png) |
 
-> 截图都是从真实播放里截的，不是效果图：用 Chromium 媒体栈经插件的路由解码后截帧生成（`tools/stills.mjs` 与 `tools/browser-check.mjs --shot=`）。
+| 打砖块 | 记忆翻牌 |
+| --- | --- |
+| ![打砖块：挡板与彩色砖块](docs/breakout.png) | ![记忆翻牌：翻开的牌面](docs/memory.png) |
+
+**打字冲刺** —— 照抄单词回车提交：
+
+![打字冲刺：目标词与已输入的单词](docs/typing.png)
+
+> 截图都是从真实运行里截的，不是效果图：经插件的路由服务页面，用 Chromium 采集 WebGL 与 DOM 画面（`tools/browser-check.mjs --shot=`、`tools/stills.mjs`）。
 
 ## 怎么用
 
