@@ -30,7 +30,7 @@
     <div class="sc-actions">
       <button class="cta" id="btn-watch" type="button"><span class="cta-ico">▶</span><span>Watch the journey<small>A 1-minute film · sound on</small></span></button>
       <button class="cta ghost" id="btn-explore" type="button"><span>Explore freely<small>Orbit, fly and inspect every structure</small></span></button>
-      <a class="cta" href="beyond.html"><span class="cta-ico">★</span><span>Remastered · Beyond the Wandering Earth<small>The new full experience: engines, solar system, galaxy</small></span></a>
+      <a class="cta" href="/boot-animation/game/wandering-earth/beyond.html"><span class="cta-ico">★</span><span>Remastered · Beyond the Wandering Earth<small>The new full experience: engines, solar system, galaxy</small></span></a>
     </div>
   </div>
 </div>
@@ -56,7 +56,7 @@
     <div class="sc-actions">
       <button class="cta" id="btn-again" type="button"><span class="cta-ico">↺</span><span>Watch again</span></button>
       <button class="cta ghost" id="btn-explore2" type="button"><span>Explore freely<small>Take the controls</small></span></button>
-      <a class="cta" href="beyond.html"><span class="cta-ico">▶</span><span>Continue · Part II<small>Beyond the Wandering Earth</small></span></a>
+      <a class="cta" href="/boot-animation/game/wandering-earth/beyond.html"><span class="cta-ico">▶</span><span>Continue · Part II<small>Beyond the Wandering Earth</small></span></a>
     </div>
   </div>
 </div>
@@ -168,69 +168,81 @@
 </script>
 <script type="module" src="/boot-animation/game/wandering-earth/js/app.js"></script>
 
-<!-- ==== 开机动画：点火层（在此之上叠加玩法，原场景不动）==== -->
+<!-- ===== 开机动画：《流浪地球》计划讲解 =====
+     原项目自带一套章节 + 电影运镜（startStory），以及 OrbitControls 自由查看。
+     这里不重写它，只做三件事：开机自动播放讲解、把讲解字幕接到开机层、
+     一旦用户动鼠标/触摸就交给自由查看（转圈、缩放、平移）。 -->
 <style>
-  #hud-ignite { position:fixed; inset:0; z-index:900; pointer-events:none;
-    display:flex; flex-direction:column; justify-content:space-between; padding:16px;
-    font-family: ui-monospace, Consolas, "Microsoft YaHei", monospace; color:#dcefff; }
-  #hud-ignite .top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
-  #hud-ignite .title { font-size:20px; letter-spacing:6px; color:#9fe8ff; font-weight:600;
-    text-shadow:0 0 18px rgba(120,200,255,.5); }
-  #hud-ignite .sub { font-size:11px; color:#5f7d8c; letter-spacing:2px; margin-top:4px; }
-  #hud-ignite .ig-panel { pointer-events:auto; background:rgba(8,14,20,.72);
-    border:1px solid rgba(40,80,110,.65); border-radius:12px; padding:12px 14px;
-    backdrop-filter: blur(6px); display:block; }
-  #gauges { display:flex; flex-direction:column; gap:10px; min-width:210px; }
-  #gauges .g { display:flex; flex-direction:column; gap:4px; }
-  #gauges .lab { display:flex; justify-content:space-between; font-size:11px; color:#5f7d8c; }
-  #gauges .lab b { color:#9fe8ff; font-weight:600; }
-  #gauges .track { position:relative; height:12px; border-radius:6px; overflow:hidden;
-    background:#0b151c; border:1px solid rgba(40,80,110,.6); }
-  #gauges .band { position:absolute; top:0; bottom:0; background:rgba(126,242,154,.20);
-    border-left:1px solid #7ef29a; border-right:1px solid #7ef29a; }
-  #gauges .knob { position:absolute; top:-2px; bottom:-2px; width:3px; background:#ff8a5c;
-    box-shadow:0 0 8px #ff8a5c; }
-  #gauges .knob.ok { background:#7ef29a; box-shadow:0 0 8px #7ef29a; }
-  #charge { margin-top:8px; }
-  #charge .lab { display:flex; justify-content:space-between; font-size:11px; color:#5f7d8c; }
-  #charge .track { height:8px; }
-  #charge .fill { position:absolute; left:0; top:0; bottom:0; width:0%;
-    background:linear-gradient(90deg,#2e7d8a,#7ef29a); }
-  #ig-msg { text-align:center; font-size:13px; min-height:18px; color:#ff8a5c;
-    text-shadow:0 0 12px rgba(0,0,0,.8); }
-  #ig-msg.ok { color:#7ef29a; }
-  #ig-keys { text-align:center; font-size:11px; color:#5f7d8c; margin-top:4px; }
-  /* Fade the upstream menu overlays without ever removing their nodes: app.js
-     binds listeners to them at start-up and would break on a null. */
-  #loader, #start, #end, #story, #fade, .bars {
-    opacity:0 !important; pointer-events:none !important; transition:opacity .5s ease; }
+  /* 原界面的开场菜单/结束页淡出，但保留节点：app.js 启动时对它们绑定事件。 */
+  #loader, #start, #end, #fade, .bars {
+    opacity: 0 !important; pointer-events: none !important; transition: opacity .6s ease;
+  }
+
+  #em-boot { position: fixed; inset: 0; z-index: 900; pointer-events: none;
+    font-family: ui-monospace, Consolas, "Microsoft YaHei", monospace; color: #dcefff; }
+  #em-boot .head { position: absolute; left: 0; right: 0; top: 5vh; text-align: center;
+    opacity: 0; transition: opacity .7s ease; }
+  #em-boot .head.on { opacity: 1; }
+  #em-boot .kicker { font-size: 11px; letter-spacing: 5px; color: #6f93a8; }
+  #em-boot .title { font-size: 34px; letter-spacing: 12px; margin-top: 8px;
+    color: #e9f6ff; text-shadow: 0 0 34px rgba(120,190,255,.55); }
+  #em-boot .year { font-size: 12px; letter-spacing: 6px; color: #8fb6cc; margin-top: 8px; }
+
+  #em-boot .sub { position: absolute; left: 0; right: 0; bottom: 16vh; text-align: center;
+    font-size: 17px; letter-spacing: 1px; color: #d6ecfa; padding: 0 12vw;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .55s ease, transform .55s ease;
+    text-shadow: 0 2px 26px rgba(0,0,0,.95), 0 0 40px rgba(0,0,0,.8); }
+  #em-boot .sub::before { content: ""; position: absolute; inset: -18px -6vw; z-index: -1;
+    background: radial-gradient(60% 100% at 50% 50%, rgba(2,6,10,.55), rgba(2,6,10,0) 72%); }
+  #em-boot .sub.on { opacity: 1; transform: none; }
+
+  #em-boot .bar { position: absolute; left: 6vw; right: 6vw; bottom: 9vh; height: 2px;
+    background: rgba(120,170,200,.18); }
+  #em-boot .bar i { display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #3f7fa8, #9fe8ff); box-shadow: 0 0 12px #9fe8ff; }
+  #em-boot .meta { position: absolute; left: 6vw; right: 6vw; bottom: 3.5vh; display: flex;
+    justify-content: space-between; align-items: center; font-size: 11px; color: #a9c8da;
+    letter-spacing: 2px; }
+  #em-boot .meta span { background: rgba(6,11,16,.55); padding: 3px 9px; border-radius: 5px; }
+
+  /* 提示：一碰鼠标就自由查看 */
+  #em-boot .hint { position: absolute; right: 5vw; bottom: 6vh; font-size: 11px;
+    color: #7fa8bd; letter-spacing: 1px; opacity: .85; }
+  #em-boot .hint.kb { color: #cfe4f0; }
+
+  /* 自由查看时的简短引导，几秒后自动淡出 */
+  #em-boot .freehint { position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 5vh; font-size: 12px; color: #9fc2d4; letter-spacing: 2px;
+    background: rgba(8,14,20,.62); border: 1px solid rgba(60,100,130,.5);
+    border-radius: 8px; padding: 7px 16px; opacity: 0; transition: opacity .5s ease; }
+  #em-boot .freehint.on { opacity: 1; }
+
+  #em-skip { position: fixed; right: 16px; bottom: 14px; z-index: 950; cursor: pointer;
+    font: 12px/1.6 system-ui, sans-serif; color: #cfd8dd; background: rgba(16,24,32,.8);
+    border: 1px solid rgba(90,140,170,.6); border-radius: 8px; padding: 6px 12px; }
+  #em-skip:hover { color: #fff; border-color: rgba(140,200,240,.9); }
 </style>
 
-<div id="hud-ignite">
-  <div class="top">
-    <div>
-      <div class="title">行 星 发 动 机</div>
-      <div class="sub">THE EARTH MIGRATION PROJECT · 点火程序</div>
-    </div>
-    <div class="ig-panel">
-      <div id="gauges"></div>
-      <div id="charge">
-        <div class="lab"><span>点火充能</span><span id="ig-pct">0%</span></div>
-        <div class="track"><div class="fill" id="ig-fill"></div></div>
-      </div>
-    </div>
+<div id="em-boot">
+  <div class="head" id="em-head">
+    <div class="kicker" id="em-kicker">联合地球政府 · 流浪地球计划</div>
+    <div class="title" id="em-title"></div>
+    <div class="year" id="em-year"></div>
   </div>
-  <div>
-    <div id="ig-msg">把三路参数压进绿区，撑满 3 秒点火</div>
-    <div id="ig-keys">← → 转向 · A / D 姿态 · ↑ ↓ 推力 · Esc 跳过</div>
+  <div class="sub" id="em-sub"></div>
+  <div class="bar"><i id="em-fill"></i></div>
+  <div class="meta">
+    <span id="em-chapter">流浪地球计划</span>
+    <span id="em-clock">0:00 / 1:02</span>
   </div>
+  <div class="hint" id="em-hint">移动鼠标即可自由查看 · 滚轮缩放 · 拖动旋转</div>
 </div>
-<button id="ig-skip" type="button" style="position:fixed;right:16px;bottom:14px;z-index:950;
-  font:12px/1.6 system-ui,sans-serif;color:#cfd8dd;cursor:pointer;background:rgba(16,24,32,.8);
-  border:1px solid rgba(90,140,170,.6);border-radius:8px;padding:6px 12px">跳过</button>
+<button id="em-skip" type="button">跳过</button>
 
 <script>
 (function () {
+  // 与其它内置游戏一致的中继：宿主页监听这两个消息。
   window.__bootGame = {
     done: function (d) { try { parent.postMessage(Object.assign({ __bootGameDone: true }, d || {}), "*"); } catch (e) {} },
     skip: function () { try { parent.postMessage({ __bootSkip: true }, "*"); } catch (e) {} }
@@ -240,95 +252,245 @@
       e.preventDefault(); e.stopPropagation(); window.__bootGame.skip();
     }
   }, true);
-  document.getElementById("ig-skip").addEventListener("click", function () { window.__bootGame.skip(); });
-
-  // Auto-enter the free-explore state the app already implements.
-  var entered = false;
-  var t = setInterval(function () {
-    if (entered) { clearInterval(t); return; }
-    var b = document.getElementById("btn-explore");
-    if (b) { b.click(); entered = true; clearInterval(t); }
-  }, 300);
-  setTimeout(function () { clearInterval(t); }, 12000);
+  document.getElementById("em-skip").addEventListener("click", function () { window.__bootGame.skip(); });
 })();
 
-// ---- ignition game ----
+/**
+ * 讲解层。原项目把章节时钟、镜头、字幕都放在 app.js 内部（startStory /
+ * updateStory），没有对外导出，所以这里用 DOM 跟随的方式叠加：读它已经渲染
+ * 出来的章节号、标题、字幕和进度条，镜像到开机层上——不复制它的运镜逻辑，
+ * 相机依旧完全由它驱动，因此镜头始终是它调好的那一套。
+ */
 (function () {
-  var HOLD = 3000;
-  var SPECS = [
-    { name: "转向", key: "← →", band: [0.42, 0.58], pos: 0.50, drift: 0.0009, push: 0.045 },
-    { name: "姿态", key: "A D", band: [0.34, 0.50], pos: 0.42, drift: 0.0012, push: 0.050 },
-    { name: "推力", key: "↑ ↓", band: [0.62, 0.78], pos: 0.70, drift: 0.0011, push: 0.045 }
-  ];
-  var host = document.getElementById("gauges");
-  var doms = SPECS.map(function (s) {
-    var w = document.createElement("div"); w.className = "g";
-    w.innerHTML = '<div class="lab"><span>' + s.name + '</span><b>' + s.key + '</b></div>' +
-      '<div class="track"><div class="band"></div><div class="knob"></div></div>';
-    var band = w.querySelector(".band");
-    band.style.left = (s.band[0] * 100) + "%";
-    band.style.width = ((s.band[1] - s.band[0]) * 100) + "%";
-    host.appendChild(w);
-    return { knob: w.querySelector(".knob") };
-  });
-  var msgEl = document.getElementById("ig-msg");
-  var pctEl = document.getElementById("ig-pct");
-  var fillEl = document.getElementById("ig-fill");
-  var held = 0, done = false, last = 0;
-  var inBand = function (s) { return s.pos >= s.band[0] && s.pos <= s.band[1]; };
+  /**
+   * 讲解脚本：章节边界沿用原项目的镜头时长（8/12/11/12/10/9 秒），
+   * 每条字幕的秒数对齐它的分镜切点，所以文字换行与镜头切换是同步的。
+   * 原来的英文字幕只有一句短语，这里换成中文，并把每章讲清楚。
+   */
+  var CH = {
+    total: 62,
+    list: [
+      { at: 0, num: "01", title: "太阳的黄昏", year: "2075 年前夕 · 2061",
+        lines: [
+          { at: 0.4, text: "2061 年，太阳开始膨胀。观测证实：它已步入晚年，即将吞没整个内太阳系。" },
+          { at: 4.6, text: "人类联合政府做出决定 —— 不逃离地球，而是把地球一起带走。" }
+        ] },
+      { at: 8, num: "02", title: "点火", year: "纪元 0 年",
+        lines: [
+          { at: 8.0,  text: "行星发动机：高一万一千米，以重聚变技术燃烧岩石，产生上百亿吨推力。" },
+          { at: 9.8,  text: "一万两千座发动机，自赤道起，一个大洲接一个大洲地同时点火。" },
+          { at: 14.0, text: "等离子体光柱刺破大气层，直抵同步轨道 —— 全球变暖两百年，一次还清。" }
+        ] },
+      { at: 20, num: "03", title: "让地球自转停下", year: "纪元 0 年 · 第三天",
+        lines: [
+          { at: 21.0, text: "赤道转向发动机群，以轴线对准自转方向反向喷射。" },
+          { at: 25.9, text: "4.5 亿年以来第一次，地球停止了转动。脚下的大陆成为永昼与永夜的分界。" }
+        ] },
+      { at: 31, num: "04", title: "太空电梯", year: "纪元 1 年",
+        lines: [
+          { at: 31.6, text: "三万六千公里 —— 从赤道直达同步轨道，一座混凝土塔基撑起的缆索。" },
+          { at: 36.2, text: "这是唯一能让物资离开地球、又不必再烧光一颗煤球的方式。" },
+          { at: 40.3, text: "终点是「天枢」中枢空间站：整个迁移计划的指挥与装配中心。" }
+        ] },
+      { at: 43, num: "05", title: "木星引力弹弓", year: "纪元 17 年",
+        lines: [
+          { at: 43.5, text: "木星，太阳系最大的行星。它的引力是最后一脚。" },
+          { at: 47.4, text: "十四台转向发动机全部指向木星，把整颗行星引力化作推离太阳系的加速度。" }
+        ] },
+      { at: 53, num: "06", title: "两千年长夜", year: "纪元 2500 年",
+        lines: [
+          { at: 53.4, text: "地表零下八十度，海洋封冻，城市沉入冰下，隐于地底。" },
+          { at: 55.4, text: "目的地：四光年外的比邻星。一百代人，两千五百年 —— 一个关于希望的赌注。" }
+        ] }
+    ]
+  };
 
-  function render() {
-    for (var i = 0; i < SPECS.length; i++) {
-      var s = SPECS[i], d = doms[i];
-      d.knob.style.left = "calc(" + (s.pos * 100) + "% - 1.5px)";
-      d.knob.classList.toggle("ok", inBand(s));
-    }
-    var pct = Math.round((held / HOLD) * 100);
-    pctEl.textContent = pct + "%";
-    fillEl.style.width = pct + "%";
+  var el = {
+    head: document.getElementById("em-head"),
+    title: document.getElementById("em-title"),
+    year: document.getElementById("em-year"),
+    sub: document.getElementById("em-sub"),
+    fill: document.getElementById("em-fill"),
+    chapter: document.getElementById("em-chapter"),
+    clock: document.getElementById("em-clock"),
+    hint: document.getElementById("em-hint"),
+    root: document.getElementById("em-boot")
+  };
+
+  var up = {
+    num: document.getElementById("stc-num"),
+    title: document.getElementById("stc-title"),
+    year: document.getElementById("stc-year"),
+    sub: document.getElementById("st-sub"),
+    fill: document.getElementById("sb-fill"),
+    time: document.getElementById("sb-time"),
+    card: document.getElementById("st-card")
+  };
+
+  var free = false;      // 用户已接管相机
+  var lastSub = "";
+  var lastTitle = "";
+  var freeHint = null;
+
+  function fmt(sec) {
+    var s = Math.max(0, Math.floor(sec));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
   }
 
-  function tick(ts) {
-    var dt = last === 0 ? 16 : Math.min(48, ts - last);
-    last = ts;
-    if (!done) {
-      var all = true;
-      for (var i = 0; i < SPECS.length; i++) {
-        var s = SPECS[i];
-        s.pos += (Math.sin(ts * s.drift * 0.9) * 0.6 + (Math.random() - 0.5)) * s.drift * dt;
-        s.pos = Math.min(0.98, Math.max(0.02, s.pos));
-        if (!inBand(s)) all = false;
-      }
-      if (all) {
-        held += dt;
-        msgEl.textContent = "点火中 —— 保持住！"; msgEl.className = "ok";
-        if (held >= HOLD) {
-          done = true;
-          msgEl.textContent = "发动机启动 —— 地球起航";
-          setTimeout(function () { window.__bootGame.done({ game: "wandering-earth", via: "earth-migration" }); }, 1600);
-        }
-      } else {
-        held = Math.max(0, held - dt * 0.6);
-        msgEl.textContent = "参数越界，充能回落"; msgEl.className = "";
-      }
-      render();
-    }
-    requestAnimationFrame(tick);
+  /**
+   * 讲解时钟。
+   *
+   * 原项目的 story.t 是「每帧累加 dt」得到的，帧率被节流（无头浏览器、
+   * 低功耗模式、后台标签页）时整部片子会被拉长成慢放。这里改用墙上时间：
+   * 从讲解真正开始那一刻计时，按真实秒数推进，画面镜头仍由原项目自己跑，
+   * 但字幕与进度不会被渲染性能拖慢。
+   */
+  var startedAt = 0;
+  function markStarted() {
+    if (startedAt === 0) startedAt = (window.performance || Date).now();
+  }
+  function storyTime() {
+    if (startedAt === 0) return 0;
+    var now = (window.performance || Date).now();
+    return Math.max(0, Math.min(CH.total, (now - startedAt) / 1000));
   }
 
-  function nudge(i, a) { var s = SPECS[i]; s.pos = Math.min(0.98, Math.max(0.02, s.pos + a)); }
-  document.addEventListener("keydown", function (e) {
-    switch (e.key) {
-      case "ArrowLeft": e.preventDefault(); nudge(0, -0.045); break;
-      case "ArrowRight": e.preventDefault(); nudge(0, 0.045); break;
-      case "a": case "A": e.preventDefault(); nudge(1, -0.050); break;
-      case "d": case "D": e.preventDefault(); nudge(1, 0.050); break;
-      case "ArrowUp": e.preventDefault(); nudge(2, 0.045); break;
-      case "ArrowDown": e.preventDefault(); nudge(2, -0.045); break;
+  /** 原项目的进度条值，仅用于「它自己是否已走完」这类判断。 */
+  function upstreamTime() {
+    var w = parseFloat(up.fill && up.fill.style.width) || 0;
+    return Math.max(0, Math.min(CH.total, w / 100 * CH.total));
+  }
+
+  function currentChapter(t) {
+    var found = CH.list[0];
+    for (var i = 0; i < CH.list.length; i++) if (t >= CH.list[i].at) found = CH.list[i];
+    return found;
+  }
+
+  /** 下一章的起点，最后一章返回 0（表示影片结束）。 */
+  function nextChapterAt(chapter) {
+    for (var i = 0; i < CH.list.length; i++) {
+      if (CH.list[i].at > chapter.at) return CH.list[i].at;
     }
+    return 0;
+  }
+
+  // 原界面里的章节卡片/字幕：读它们，抹掉原样显示，只留我们的版本。
+  var UPSTREAM_TO_HIDE = ["st-card", "st-title", "st-sub", "story", "hud", "caption", "markers", "tooltip"];
+  function hideUpstreamOverlays() {
+    for (var i = 0; i < UPSTREAM_TO_HIDE.length; i++) {
+      var n = document.getElementById(UPSTREAM_TO_HIDE[i]);
+      if (n === null) continue;
+      n.style.opacity = "0";
+      n.style.visibility = "hidden";
+      n.style.pointerEvents = "none";
+      // The caption's children carry their own transitions and can re-show.
+      var kids = n.querySelectorAll("*");
+      for (var k = 0; k < kids.length; k++) { kids[k].style.opacity = "0"; }
+    }
+  }
+  hideUpstreamOverlays();
+  setInterval(hideUpstreamOverlays, 500);
+
+  /** 用户接管：交给原项目的自由查看（OrbitControls 已配好阻尼/缩放/旋转）。 */
+  function takeOver() {
+    if (free) return;
+    free = true;
+    // btn-explore 走 startExplore -> setMode('cinematic')，那里 controls.enabled = true。
+    var b = document.getElementById("btn-explore");
+    if (b !== null) b.click();
+    el.head.classList.remove("on");
+    el.sub.classList.remove("on");
+    el.chapter.textContent = "自由查看 · FREE ORBIT";
+    el.hint.textContent = "拖动旋转 · 滚轮缩放 · 右键平移";
+    el.hint.classList.add("kb");
+    if (freeHint === null) {
+      freeHint = document.createElement("div");
+      freeHint.className = "freehint";
+      freeHint.textContent = "拖动旋转 · 滚轮缩放 · 右键平移 · Esc 跳过";
+      el.root.appendChild(freeHint);
+    }
+    freeHint.classList.add("on");
+    setTimeout(function () { if (freeHint) freeHint.classList.remove("on"); }, 6000);
+  }
+
+  // 任何真实交互都算接管；pointerlock/键盘快捷键留给原项目。
+  ["pointerdown", "wheel", "touchstart"].forEach(function (ev) {
+    window.addEventListener(ev, function () {
+      if (!free) takeOver();
+    }, { passive: true });
   });
-  render();
-  requestAnimationFrame(tick);
+
+  var t0 = 0;
+  function frame(ts) {
+    if (t0 === 0) t0 = ts;
+    var t = storyTime();
+
+    // 章节标题：三秒后淡出，避免一直压在画面上。
+    var ch = currentChapter(t);
+    var withinChapter = t - ch.at;
+    var label = ch.num + " · " + ch.title;
+    if (label !== lastTitle) { lastTitle = label; el.title.textContent = ch.title; el.year.textContent = ch.year; }
+    el.head.classList.toggle("on", !free && withinChapter < 7.2);
+
+    // 字幕：用这份中文讲解脚本，按每章的分镜节拍切换，不再跟随原项目的英文短句。
+    var now = "";
+    var entry = null;
+    for (var li = 0; li < ch.lines.length; li++) {
+      if (t >= ch.lines[li].at) entry = ch.lines[li];
+    }
+    if (entry !== null) now = entry.text;
+    // 每章最后 0.6 秒收起字幕，给镜头切换留一口气。
+    var chapterEnd = (nextChapterAt(ch) || CH.total) - 0.6;
+    if (t >= chapterEnd) now = "";
+    if (now !== lastSub) {
+      lastSub = now;
+      el.sub.classList.toggle("on", false);
+      el.sub.textContent = now;
+      if (now.length > 0 && !free) {
+        // 让淡入跟着文字一起重播，换句有节奏感。
+        requestAnimationFrame(function () { el.sub.classList.toggle("on", true); });
+      }
+    }
+
+    if (!free) {
+      el.fill.style.width = (t / CH.total * 100).toFixed(2) + "%";
+      el.chapter.textContent = "第 " + ch.num + " 章 · " + ch.title;
+      el.clock.textContent = fmt(t) + " / " + fmt(CH.total);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /**
+   * 自动播放：原页面加载完是开场菜单，直接点它的「Watch the journey」即可，
+   * 之后所有运镜、字幕、音效都由它自己的导演系统驱动。
+   */
+  var started = false;
+  var timer = setInterval(function () {
+    if (started) { clearInterval(timer); return; }
+    if (!window.__emReady) return;
+    var b = document.getElementById("btn-watch");
+    if (b !== null) { b.click(); started = true; markStarted(); clearInterval(timer); }
+  }, 250);
+  setTimeout(function () {
+    clearInterval(timer);
+    if (!started) {
+      var b = document.getElementById("btn-watch");
+      if (b !== null) b.click();
+      started = true; markStarted();
+    }
+  }, 20000);
+
+  // 讲解播完自动结束开机动画。
+  var endedCheck = setInterval(function () {
+    if (free) { clearInterval(endedCheck); return; }
+    var t = storyTime();
+    if (t >= CH.total - 0.4) {
+      clearInterval(endedCheck);
+      window.__bootGame.done({ game: "wandering-earth", mode: "walkthrough" });
+    }
+  }, 400);
 })();
 </script>
 </body>

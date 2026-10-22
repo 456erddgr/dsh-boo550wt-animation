@@ -1,8 +1,8 @@
 {
   "name": "dsh-boo550wt-animation",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
-  "description": "Customizable boot animation for DeepSeek Harness: upload your own video, picture or HTML page, or play one of six built-in mini games — including a real 3D planetary-engine scene built on three.js — with sound, and tune it all from the Settings panel.",
+  "description": "Customizable boot animation for DeepSeek Harness: upload your own video, picture or HTML page, play one of five built-in mini games, or watch a 3D Wandering Earth walkthrough with a free-look camera, with sound, and tune it all from the Settings panel.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

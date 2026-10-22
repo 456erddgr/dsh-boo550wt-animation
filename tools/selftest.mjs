@@ -173,7 +173,7 @@ await check("every built-in game renders a complete page with the skip relay", a
     gameServer.close();
   }
 });
-await check("the Wandering Earth game is the vendored 3D scene, not a canvas sketch", () => {
+await check("the Wandering Earth entry is the vendored 3D scene with a Chinese walkthrough", () => {
   assert.ok(GAME_IDS.includes("wandering-earth"), "wandering-earth is missing");
   assert.equal(gameTitle("wandering-earth").includes("流浪地球"), true);
   const root = resolve(ROOT, "vendor", "earth-migration");
@@ -189,7 +189,14 @@ await check("the Wandering Earth game is the vendored 3D scene, not a canvas ske
   }
   const html = readFileSync(resolve(root, "ignite.html"), "utf8");
   assert.equal(html.includes("importmap"), true, "no import map: three would not resolve");
-  assert.equal(html.includes("hud-ignite"), true, "the ignition HUD is missing");
+  assert.equal(html.includes("em-boot"), true, "the walkthrough overlay is missing");
+  // It must narrate in Chinese, chapter by chapter, not ship English copy.
+  for (const line of ["太阳的黄昏", "点火", "让地球自转停下", "太空电梯", "木星引力弹弓", "两千年长夜"]) {
+    assert.equal(html.includes(line), true, `missing chapter copy: ${line}`);
+  }
+  // Handing the camera to the viewer is the point of the free-look mode.
+  assert.equal(html.includes("btn-explore"), true, "no free-look hand-off");
+  assert.equal(html.includes("__bootSkip"), true, "no skip relay");
   assert.equal(/https?:\/\//.test(html), false, "the page must not reach the network");
 });
 await check("an unknown game id is refused", async () => {
