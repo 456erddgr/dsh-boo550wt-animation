@@ -302,12 +302,16 @@ await check("chromium decodes the video through the Range route", () => {
 
 const media = await evaluate(`(function () {
   var v = document.querySelector("#dsh-boo550wt-animation-layer video");
-  return { readyState: v.readyState, duration: v.duration, currentTime: v.currentTime, error: v.error === null ? null : v.error.code };
+  return { readyState: v.readyState, duration: v.duration, currentTime: v.currentTime, muted: v.muted, volume: v.volume, error: v.error === null ? null : v.error.code };
 })()`);
 await check("the media element reports a sane duration", () => {
   assert.equal(media.error, null);
   assert.ok(Math.abs(media.duration - 16.649) < 0.2, `duration ${media.duration}`);
   assert.ok(media.currentTime > 0.2);
+});
+await check("the clip plays with its own audio, not muted by default", () => {
+  assert.equal(media.muted, false, "the video must not be muted: defaulting to muted is how the sound was lost");
+  assert.ok(media.volume > 0, `volume ${media.volume}`);
 });
 
 // ------------------------------------------------------------ mode switching

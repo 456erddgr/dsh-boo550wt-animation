@@ -1,8 +1,8 @@
 {
   "name": "dsh-boo550wt-animation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "Customizable boot animation for DeepSeek Harness: video, image, webpage or a built-in mini game full-screen at startup, with a Settings panel.",
+  "description": "Customizable boot animation for DeepSeek Harness: upload your own video, picture or HTML page, or play the built-in snake game, with sound, and tune it all from the Settings panel.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

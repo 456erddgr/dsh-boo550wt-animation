@@ -252,12 +252,101 @@ check("snake game page is served", () => {
   assert.equal(gameBody.includes("贪吃蛇"), true);
 });
 
+// ---- uploads ----
+console.log("uploads");
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const upRes = await fetch(`${base}/upload?title=my-poster`, {
+  method: "POST",
+  headers: { "content-type": "image/png" },
+  body: png,
+});
+const upBody = await upRes.json();
+check("upload stores an image and reports its kind", () => {
+  assert.equal(upRes.status, 200);
+  assert.equal(upBody.kind, "image");
+  assert.equal(upBody.title, "my-poster");
+  assert.match(upBody.name, /^up-[a-z0-9-]+\.png$/u);
+  assert.ok(upBody.bytes > 0);
+});
+
+const upList = await (await fetch(`${base}/uploads`)).json();
+check("the upload appears in the list", () => {
+  assert.equal(upList.uploads.length, 1);
+  assert.equal(upList.uploads[0].title, "my-poster");
+  assert.equal(upList.uploads[0].kind, "image");
+});
+
+const dupRes = await fetch(`${base}/upload?title=again`, {
+  method: "POST",
+  headers: { "content-type": "image/png" },
+  body: png,
+});
+const dupBody = await dupRes.json();
+check("identical bytes deduplicate to the existing entry", () => {
+  assert.equal(dupRes.status, 200);
+  assert.equal(dupBody.duplicate, true);
+  assert.equal(dupBody.name, upBody.name);
+});
+
+const origin = `http://127.0.0.1:${server.address().port}`;
+const servedUpload = await fetch(`${origin}${upBody.url}`);
+check("an uploaded asset streams from its own route", () => {
+  assert.equal(servedUpload.status, 200);
+  assert.equal(servedUpload.headers.get("content-type"), "image/png");
+});
+
+const badType = await fetch(`${base}/upload`, {
+  method: "POST",
+  headers: { "content-type": "application/zip" },
+  body: Buffer.from("nope"),
+});
+check("an unsupported type is refused with 415", () => {
+  assert.equal(badType.status, 415);
+});
+
+// Select the upload and confirm the config points at it.
+await fetch(`${base}/config`, {
+  method: "PUT",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ mode: "image", imageUpload: upBody.name }),
+});
+const picked = await (await fetch(`${base}/config`)).json();
+check("config can select an uploaded asset", () => {
+  assert.equal(picked.imageUpload, upBody.name);
+  assert.equal(picked.media.kind, "image");
+  assert.equal(picked.media.url, upBody.url);
+});
+
+const removeRes = await fetch(`${base}/upload-remove`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ name: upBody.name }),
+});
+const removeBody = await removeRes.json();
+check("removing an upload deletes it", async () => {
+  assert.equal(removeRes.status, 200);
+  assert.equal(removeBody.ok, true);
+  const after = await (await fetch(`${base}/uploads`)).json();
+  assert.equal(after.uploads.length, 0);
+});
+
+const traversal = await fetch(`${base}/upload-remove`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ name: "../../package.json" }),
+});
+check("path traversal is refused", () => {
+  assert.equal(traversal.status, 404);
+});
+
 const cfg = await fetch(`${base}/config`);
 const cfgBody = await cfg.json();
 check("config GET returns the live settings", () => {
   assert.equal(cfg.status, 200);
-  assert.equal(cfgBody.mode, "game"); // saved earlier
-  assert.equal(cfgBody.media.kind, "game");
+  assert.equal(cfgBody.media.kind, "image");
 });
 
 const put = await fetch(`${base}/config`, {
