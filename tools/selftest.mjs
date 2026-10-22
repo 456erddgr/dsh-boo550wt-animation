@@ -20,8 +20,8 @@ import { fileURLToPath } from "node:url";
 
 import { BOOT_STYLE, bootScript } from "../lib/inject.js";
 import { parseRange } from "../lib/media.js";
-import { snakeGameHtml } from "../lib/games.js";
 import { apply } from "../lib/index.js";
+import { GAME_IDS, gameTitle, serveGame, snakeGameHtml } from "../lib/games.js";
 import {
   BUNDLED_IMAGE,
   BUNDLED_VIDEO,
@@ -134,8 +134,40 @@ console.log("games");
 check("snake page is a full HTML document", () => {
   const html = snakeGameHtml();
   assert.equal(html.includes("<!doctype html>"), true);
+  assert.equal(html.includes("</html>"), true);
   assert.equal(html.includes("贪吃蛇"), true);
   assert.equal(html.includes("__bootGameDone"), true);
+});
+check("every built-in game renders a complete page with the skip relay", () => {
+  assert.ok(GAME_IDS.length >= 6, `expected at least 6 games, got ${GAME_IDS.length}`);
+  for (const id of GAME_IDS) {
+    let body = "";
+    const res = {
+      writeHead() {},
+      end(chunk) { body = chunk ? chunk.toString() : ""; },
+    };
+    assert.equal(serveGame(id, { method: "GET", url: "/" }, res), true, `${id} did not serve`);
+    assert.equal(body.startsWith("<!doctype html>"), true, `${id} is not a document`);
+    assert.equal(body.includes("</html>"), true, `${id} is truncated`);
+    // The relay is what makes Esc and the skip button work inside the frame.
+    assert.equal(body.includes("__bootSkip"), true, `${id} cannot relay a skip`);
+    assert.equal(body.includes("__bootGameDone"), true, `${id} cannot report completion`);
+  }
+});
+check("the Wandering Earth game exists and is themed", () => {
+  assert.ok(GAME_IDS.includes("wandering-earth"), "wandering-earth is missing");
+  assert.equal(gameTitle("wandering-earth").includes("行星发动机"), true);
+  let body = "";
+  serveGame("wandering-earth", { method: "GET", url: "/" }, { writeHead() {}, end(c) { body = c.toString(); } });
+  assert.equal(body.includes("地球"), true);
+});
+check("an unknown game id is refused", () => {
+  let status = 0;
+  serveGame("nope", { method: "GET", url: "/" }, {
+    writeHead(s) { status = s; },
+    end() {},
+  });
+  assert.equal(status, 404);
 });
 
 /** Build a stand-in plugin context that records what the plugin registers. */

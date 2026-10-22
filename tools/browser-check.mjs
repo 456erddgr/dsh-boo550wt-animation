@@ -317,10 +317,17 @@ await check("the clip plays with its own audio, not muted by default", () => {
 // ------------------------------------------------------------ mode switching
 
 async function switchMode(next) {
+  // Close whatever overlay is up (skipping a game that already finished, or
+  // after a click already dismissed it), then boot again with the new config.
   await evaluate(
     `(function () {
-       var skip = globalThis.__DSH_BOOT_ANIMATION__.skip;
-       skip();
+       var layer = document.getElementById("dsh-boo550wt-animation-layer");
+       if (layer === null) return false;
+       var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+       if (hint !== null) { hint.click(); return true; }
+       if (globalThis.__DSH_BOOT_ANIMATION__) { globalThis.__DSH_BOOT_ANIMATION__.skip(); return true; }
+       layer.remove();
+       return false;
      })()`,
   );
   await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000);
@@ -369,6 +376,115 @@ await check("game mode renders the snake iframe", async () => {
   assert.equal(ok, true);
 });
 
+// The reported bug: the skip affordance did nothing while a game was playing,
+// because the iframe owns the keyboard and the hint was pointer-transparent.
+await check("the skip control is a clickable button above the game frame", async () => {
+  // The button fades in over .6s, so wait for the transition to finish.
+  assert.equal(await until(
+    `(function () {
+       var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+       return hint !== null && getComputedStyle(hint).opacity === "1";
+     })()`,
+    4000,
+  ), true, "the hint never became fully opaque");
+  const probe = await evaluate(`(function () {
+    var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+    if (hint === null) return { ok: false, reason: "no hint" };
+    var cs = getComputedStyle(hint);
+    var rect = hint.getBoundingClientRect();
+    return {
+      tag: hint.tagName,
+      pointerEvents: cs.pointerEvents,
+      opacity: cs.opacity,
+      width: rect.width,
+      height: rect.height,
+      on: hint.classList.contains("dsh-boo550wt-animation-hint-on"),
+      topAtPoint: (function () {
+        var el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return el === null ? null : el.className;
+      })(),
+    };
+  })()`);
+  assert.equal(probe.tag, "BUTTON", "the hint must be a real button");
+  assert.equal(probe.pointerEvents, "auto", "the hint must accept pointer events");
+  assert.equal(probe.on, true, "the hint must be visible immediately for a game");
+  assert.equal(probe.opacity, "1", "the hint must be fully opaque once shown");
+  assert.ok(probe.width > 0 && probe.height > 0, "the hint must have a box");
+  // The element at the hint's centre must be the hint itself (its class list
+  // grows once visible), not the iframe that would swallow the click.
+  assert.ok(
+    typeof probe.topAtPoint === "string" && probe.topAtPoint.includes("dsh-boo550wt-animation-hint"),
+    `nothing may cover the hint, found ${JSON.stringify(probe.topAtPoint)}`,
+  );
+});
+
+await check("clicking the skip control dismisses a running game", async () => {
+  await evaluate(`(function () {
+    var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+    hint.click();
+    return true;
+  })()`);
+  assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000), true);
+});
+
+await check("Esc inside the game frame relays a skip to the page", async () => {
+  // A fresh game overlay, then Esc dispatched inside the frame: the frame's own
+  // relay posts the message the page listens for. This is the path that has to
+  // work when the keyboard focus is inside the iframe.
+  await switchMode({ mode: "game", game: "snake" });
+  assert.equal(await until(
+    `(function () {
+       var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+       return f !== null && f.getAttribute("src") !== null;
+     })()`,
+    10000,
+  ), true);
+  // Give the frame a moment to install its relay.
+  await new Promise((r) => setTimeout(r, 800));
+  const relayed = await evaluate(`(function () {
+    return new Promise(function (done) {
+      var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+      if (f === null) { done("no frame"); return; }
+      var doc = null;
+      try { doc = f.contentDocument; } catch (e) { done("cross-origin"); return; }
+      if (doc === null) { done("no document"); return; }
+      doc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      done("sent");
+    });
+  })()`, true);
+  assert.equal(relayed, "sent", `the frame relay could not be driven: ${relayed}`);
+  assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000), true);
+});
+
+await check("every built-in game loads in a frame", async () => {
+  for (const id of ["snake", "2048", "breakout", "memory", "typing", "wandering-earth"]) {
+    await switchMode({ mode: "game", game: id });
+    // The frame URL ends in /boot-animation/game/<id>; compare the suffix only.
+    const expected = `/boot-animation/game/${id}`;
+    const ok = await until(
+      `(function () {
+         var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+         if (f === null) return false;
+         var src = f.getAttribute("src") || "";
+         if (src.lastIndexOf(${JSON.stringify(expected)}) !== src.length - ${expected.length}) return false;
+         var d = null;
+         try { d = f.contentDocument; } catch (e) { return false; }
+         return d !== null && d.body !== null && (d.body.textContent || "").length > 10;
+       })()`,
+      12000,
+    );
+    assert.equal(ok, true, `${id} did not render (frame src never matched ${expected})`);
+    // Leave through the visible skip button, exactly as a viewer would.
+    await evaluate(`(function () {
+       var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+       if (hint === null) return false;
+       hint.click();
+       return true;
+     })()`);
+    assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000), true, `${id} did not close`);
+  }
+});
+
 // Back to video mode and verify the skip/teardown flow.
 await check("video mode after switching back", async () => {
   await switchMode({ mode: "video" });
@@ -406,9 +522,15 @@ if (SHOT !== undefined) {
   console.log(`  shot ${resolve(SHOT)}  (${(bytes.length / 1024).toFixed(0)} KiB)`);
 }
 
-// ---- teardown via the global skip, revealing the app ----
-await evaluate(`globalThis.__DSH_BOOT_ANIMATION__.skip()`);
-await check("skipping fades the layer out and releases the page", async () => {
+// ---- teardown via the visible skip button, revealing the app ----
+await check("skipping via the button fades the layer out and releases the page", async () => {
+  const clicked = await evaluate(`(function () {
+    var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+    if (hint === null) return false;
+    hint.click();
+    return true;
+  })()`);
+  assert.equal(clicked, true, "the skip button was missing");
   assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`), true);
   assert.equal(await evaluate(`document.documentElement.classList.contains("dsh-boo550wt-animation-locked")`), false);
   assert.equal(await evaluate(`globalThis.__DSH_BOOT_ANIMATION__ === undefined`), true);
