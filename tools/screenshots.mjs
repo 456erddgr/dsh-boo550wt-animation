@@ -57,7 +57,11 @@ const PLAN = [
   // Typing needs a real keystroke to show a partially typed word.
   { id: "typing",          wait: 900,   typeText: "HARN" },
   { id: "wandering-earth", wait: 17000, keys: ["ArrowRight", "d", "ArrowUp"] },
+  // Part II: twice the film, its own chapter rhythm — hold longer, seek into the
+  // ignition chapter so the shot lands on the engine field and not the title.
+  { id: "beyond-wandering-earth", wait: 22000, seek: 6, scene: true },
 ];
+
 
 async function capture(step) {
   const profile = mkdtempSync(join(tmpdir(), "shot-"));
@@ -116,8 +120,14 @@ async function capture(step) {
       var body = document.body ? document.body.textContent || "" : "";
       return body.length > 40;
     })()`);
-    if (drawn && step.id !== "wandering-earth") break;
-    if (drawn && step.id === "wandering-earth" && !!await evalp(`!!window.__emReady`)) break;
+    if (drawn && step.id !== "wandering-earth" && step.scene !== true) break;
+    if (drawn && (step.id === "wandering-earth" || step.scene === true) && !!await evalp(`!!window.__emReady`)) break;
+  }
+  // Part II's film starts with its own countdown; seek straight to the chapter the
+  // shot is meant to show, then let the camera settle on it.
+  if (typeof step.seek === "number") {
+    await evalp(`window.__beyond && window.__beyond.seek(${step.seek})`);
+    await new Promise(r => setTimeout(r, 7000));
   }
   await new Promise(r => setTimeout(r, step.clicks ? 120 : step.wait));
   if (Array.isArray(step.keys)) {

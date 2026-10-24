@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>流浪地球 2.0 · 从行星发动机到银河</title>
+<meta name="description" content="基于 earth-migration 第二部的开机讲解：行星发动机、同步轨道环、太空电梯、护航舰队、太阳系、星际空间与银河系。">
+<meta name="theme-color" content="#02040a">
+<link rel="stylesheet" href="css/beyond.css">
+</head>
+<body class="cinematic" data-em-boot="1">
+<canvas id="gl" tabindex="0" aria-label="从行星发动机到银河系的电影级 3D 旅程"></canvas>
+<div class="bars" aria-hidden="true"></div>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="ld-inner">
+    <div class="ld-kicker">联合地球政府 · 导航平台</div>
+    <div class="ld-title">BEYOND THE WANDERING EARTH</div>
+    <div class="ld-bar"><i id="ld-fill"></i></div>
+    <div class="ld-status" id="ld-status">建立上行链路…</div>
+  </div>
+</div>
+
+<div id="start" class="screen">
+  <div class="sc-inner">
+    <div class="sc-kicker">地球迁移计划 · 第二部</div>
+    <h1 class="sc-title">BEYOND THE<br>WANDERING EARTH</h1>
+    <div class="sc-sub">从垂死的太阳，到星辰大海</div>
+    <div class="sc-actions">
+      <button class="cta" id="b-begin" type="button"><span class="cta-ico">▶</span><span>开始旅程<small>2 分 54 秒 · 带声音</small></span></button>
+      <button class="cta ghost" id="b-explore" type="button"><span>自由查看<small>从发动机一直飞到银河</small></span></button>
+    </div>
+  </div>
+</div>
+
+<div id="card" aria-live="polite"><div class="cd-n" id="cd-n"></div><div class="cd-t" id="cd-t"></div><div class="cd-k" id="cd-k"></div></div>
+<div id="caption" aria-live="polite"></div>
+<div id="count" aria-hidden="true"><svg class="ct-ring" viewBox="0 0 200 200"><circle class="ct-track" cx="100" cy="100" r="92"/><circle class="ct-arc" cx="100" cy="100" r="92"/></svg><div class="ct-k">GLOBAL IGNITION SEQUENCE</div><div class="ct-n" id="ct-n"></div><div class="ct-s">10,000 ENGINES · TRAILING HEMISPHERE · THRUST 150 BILLION TONNES</div></div>
+<div id="hint"></div>
+
+<div id="hud">
+  <div id="brand"><div class="br-t">BEYOND THE WANDERING EARTH</div><div class="br-s">Humanity’s Journey from a Dying Sun to the Galactic Sea</div></div>
+  <div id="data" class="glass">
+    <div class="g-head"><span class="dot"></span>NAVIGATION TELEMETRY</div>
+    <div class="g-row"><span>ENGINE STATUS</span><b id="d-engine">—</b></div>
+    <div class="g-meter"><i id="d-engine-bar"></i></div>
+    <div class="g-row"><span>VELOCITY</span><b id="d-speed">—</b></div>
+    <div class="g-row"><span>DISTANCE FROM SOL</span><b id="d-dist">—</b></div>
+    <div class="g-row"><span>REGION</span><b id="d-region">—</b></div>
+    <div class="g-row"><span>GALACTIC COORD.</span><b id="d-coord">—</b></div>
+    <div class="g-row"><span>MISSION YEAR</span><b id="d-year">—</b></div>
+    <div class="g-row"><span>FIELD OF VIEW</span><b id="d-fov">—</b></div>
+  </div>
+  <div id="hotspots"></div>
+  <div id="info" class="glass"></div>
+  <div id="modes" class="glass" role="toolbar" aria-label="Mode">
+    <button class="mb on" id="m-film" type="button" title="Cinematic film (Space to play)"><i>▶</i>FILM</button>
+    <button class="mb" id="m-explore" type="button" title="Explore with a free camera (F)"><i>✥</i>EXPLORE</button>
+    <span class="sep"></span>
+    <button class="ib" id="b-sound" type="button" title="Sound (M)">♪</button>
+    <button class="ib" id="b-hud" type="button" title="Hide dashboards (H)">◐</button>
+    <button class="ib" id="b-fs" type="button" title="Full screen">⛶</button>
+  </div>
+  <aside id="dest" class="glass" aria-label="Destinations">
+    <div class="g-head"><span class="dot"></span>DESTINATIONS</div>
+    <div id="dest-list"></div>
+  </aside>
+  <div id="ladder" aria-hidden="true"><div class="ld-track"></div><div id="ld-marks"></div><div id="ld-cursor"><b id="ld-val">—</b></div></div>
+  <div id="dock" class="glass">
+    <button class="db" id="b-play" type="button" title="Play / pause (Space)">▶</button>
+    <div id="segs"></div>
+    <span id="time">0:00</span>
+  </div>
+  <div id="xdock" class="glass">
+    <div class="x-row"><span class="x-l">VOYAGE</span><input id="voyage" type="range" min="0" max="146" step="0.1" value="0" aria-label="Voyage time"><b id="voyage-y">2078</b></div>
+    <div class="x-row x-orb"><span class="x-l">ORBITS</span><span class="seg3"><button type="button" data-v="0" class="on">REAL TIME</button><button type="button" data-v="0.04">1 YR / 25 s</button><button type="button" data-v="0.35">1 YR / 3 s</button><button type="button" data-v="3">TIME-LAPSE</button></span></div>
+    <div id="ruler" title="Click to zoom to that scale"><div class="r-track"></div><div id="r-marks"></div><div id="r-cursor"></div></div>
+    <div class="x-hint">Drag to orbit · scroll to zoom from 100 km to 100,000 light-years · click a marker or a destination to fly there</div>
+  </div>
+</div>
+
+<div id="end" class="screen">
+  <div class="sc-inner">
+    <div class="sc-kicker">Transmission ends · The journey continues</div>
+    <h1 class="sc-title">BEYOND THE<br>WANDERING EARTH</h1>
+    <div class="sc-sub">Humanity’s Journey from a Dying Sun to the Galactic Sea</div>
+    <div class="sc-actions">
+      <button class="cta" id="b-again" type="button"><span class="cta-ico">↺</span><span>再看一次</span></button>
+      <button class="cta ghost" id="b-free2" type="button"><span>自由查看银河<small>Free camera</small></span></button>
+    </div>
+  </div>
+</div>
+
+<script src="js/boot.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+<script type="module" src="js/beyond/main.js"></script>
+
+<!-- ===== 开机动画：《流浪地球 2.0》讲解 =====
+     原项目第二部自带六章导演影片（startStory）与自由查看相机（enterFree）。
+     这里不重写它，只做四件事：开机自动播放、把讲解字幕换成中文并叠加到页面上、
+     一按鼠标就交给它的自由查看、播完通知宿主页进入界面。 -->
+<style>
+  /* 只隐去上游自己的开场菜单/结束页，以及与我们中文层重复的英文卡与英文提示。
+     状态栏（#hud，含 #dash、#dock、#xdock、#dest、#ladder、#data、#brand、#modes、
+     #hotspots、#info）**全部保留** —— 就是上游原样的那套面板。
+     上一版曾把整套状态栏 display:none 删掉，那是错的，已改回。 */
+  #loader, #start, #end, #fade, .bars, #card, #caption, #count, #hint {
+    opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
+  }
+  #card, #caption, #count, #hint { display: none !important; }
+
+  #em-boot { position: fixed; inset: 0; z-index: 900; pointer-events: none;
+    font-family: ui-monospace, Consolas, "Microsoft YaHei", monospace; color: #dcefff; }
+  /* 章节标题落在顶部状态条（MISSION STRIP）下面，不压住它 */
+  #em-boot .head { position: absolute; left: 0; right: 0; top: 11vh; text-align: center;
+    opacity: 0; transition: opacity .7s ease; }
+  #em-boot .head.on { opacity: 1; }
+  #em-boot .kicker { font-size: 11px; letter-spacing: 5px; color: #6f93a8; }
+  #em-boot .title { font-size: 32px; letter-spacing: 12px; margin-top: 8px;
+    color: #e9f6ff; text-shadow: 0 0 34px rgba(120,190,255,.55); }
+  #em-boot .year { font-size: 12px; letter-spacing: 6px; color: #8fb6cc; margin-top: 8px; }
+
+  /* 字幕抬到章节条之上，不压住 #dock */
+  #em-boot .sub { position: absolute; left: 0; right: 0; bottom: 25vh; text-align: center;
+    font-size: 17px; letter-spacing: 1px; color: #d6ecfa; padding: 0 12vw;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .55s ease, transform .55s ease;
+    text-shadow: 0 2px 26px rgba(0,0,0,.95), 0 0 40px rgba(0,0,0,.8); }
+  #em-boot .sub::before { content: ""; position: absolute; inset: -18px -6vw; z-index: -1;
+    background: radial-gradient(60% 100% at 50% 50%, rgba(2,6,10,.55), rgba(2,6,10,0) 72%); }
+  #em-boot .sub.on { opacity: 1; transform: none; }
+
+  /* 解说进度条与文字排在 #dock（底部章节条）之上，且都收在左侧台面下方：
+     右下角是 EVENT LOG，右上是模式按钮，只有左下这块是空的。 */
+  #em-boot .bar { position: absolute; left: 6vw; right: 6vw; bottom: 17.4vh; height: 2px;
+    background: rgba(120,170,200,.18); }
+  #em-boot .bar i { display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #3f7fa8, #9fe8ff); box-shadow: 0 0 12px #9fe8ff; }
+  #em-boot .meta { position: absolute; left: 2.5vw; bottom: 19.2vh; display: flex;
+    flex-direction: column; align-items: flex-start; gap: 5px; font-size: 11px;
+    color: #a9c8da; letter-spacing: 2px; }
+  #em-boot .meta span { background: rgba(6,11,16,.6); padding: 3px 9px; border-radius: 5px; }
+  #em-boot .meta .note { color: #ffcf8a; }
+
+  #em-boot .freehint { position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 5vh; font-size: 12px; color: #9fc2d4; letter-spacing: 2px;
+    background: rgba(8,14,20,.62); border: 1px solid rgba(60,100,130,.5);
+    border-radius: 8px; padding: 7px 16px; opacity: 0; transition: opacity .5s ease; }
+  #em-boot .freehint.on { opacity: 1; }
+
+  #em-skip { position: fixed; right: 16px; bottom: 14px; z-index: 950; cursor: pointer;
+    font: 12px/1.6 system-ui, sans-serif; color: #cfd8dd; background: rgba(16,24,32,.8);
+    border: 1px solid rgba(90,140,170,.6); border-radius: 8px; padding: 6px 12px; }
+  #em-skip:hover { color: #fff; border-color: rgba(140,200,240,.9); }
+</style>
+
+<div id="em-boot">
+  <div class="head" id="em-head">
+    <div class="kicker" id="em-kicker">联合地球政府 · 流浪地球计划</div>
+    <div class="title" id="em-title"></div>
+    <div class="year" id="em-year"></div>
+  </div>
+  <div class="sub" id="em-sub"></div>
+  <div class="bar"><i id="em-fill"></i></div>
+  <div class="meta">
+    <span id="em-chapter">流浪地球 2.0</span>
+    <span id="em-clock">0:00 / 2:54</span>
+    <span class="note" id="em-note"></span>
+  </div>
+</div>
+<button id="em-skip" type="button">跳过</button>
+
+<script>
+(function () {
+  // 与其它内置内容一致的中继：宿主页监听这两个消息。
+  window.__bootGame = {
+    done: function (d) { try { parent.postMessage(Object.assign({ __bootGameDone: true }, d || {}), "*"); } catch (e) {} },
+    skip: function () { try { parent.postMessage({ __bootSkip: true }, "*"); } catch (e) {} }
+  };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" || e.key === "Esc" || e.keyCode === 27) {
+      e.preventDefault(); e.stopPropagation(); window.__bootGame.skip();
+    }
+  }, true);
+  document.getElementById("em-skip").addEventListener("click", function () { window.__bootGame.skip(); });
+})();
+
+/**
+ * 讲解层。
+ *
+ * 原项目第二部把章节、镜头、英文字幕都放在 main.js 内部，只对外暴露
+ * window.__beyond（含 app.t、CHAPTERS、DURATION）。这里按它的时间轴
+ * 叠加中文讲解：章节标题、进度、字幕都以它自己的 t 为唯一时钟，
+ * 镜头完全由它的导演系统驱动 —— 不复制运镜，就不会和它对不上。
+ */
+(function () {
+  var TOTAL = 174;
+
+  var CH = [
+    { at: 0, num: "01", title: "流浪的地球", year: "2078 年 · 地球轨道 · 1 AU",
+      lines: [
+        { at: 1.5, text: "太阳正在死去。一万台聚变发动机，把它的光变成我们的出路。" },
+        { at: 8.0, text: "太空电梯：三万六千公里，从赤道直达同步轨道。" },
+        { at: 17.2, text: "升降舱把地表最后的东西，一级一级送上星辰。" },
+        { at: 23.4, text: "天枢空间站：同步轨道环上的船坞与居所。" },
+        { at: 28.4, text: "在行星之前，是它的护航舰队。" },
+        { at: 30.5, text: "我们带走了整个世界。" }
+      ] },
+    { at: 32, num: "02", title: "太阳系", year: "2079—2093 年 · 1 → 10 AU",
+      lines: [
+        { at: 34.0, text: "一颗行星，带着整个世界，驶出养育它的星系。" },
+        { at: 40.5, text: "几十年在几秒里流过。行星绕着膨胀的太阳旋转。" },
+        { at: 47.0, text: "身后，太阳在痉挛：耀斑、日珥、等离子风暴。" },
+        { at: 54.0, text: "木星的引力弯折航线，把我们甩向更远处。" },
+        { at: 58.5, text: "土星环被从背后照亮 —— 这是我们见到的最后一点暖光。" }
+      ] },
+    { at: 66, num: "03", title: "越过外行星", year: "2101—2156 年 · 30 → 120 AU",
+      lines: [
+        { at: 67.5, text: "海王星。这里的阳光，弱了九百倍。" },
+        { at: 74.5, text: "柯伊伯带：冰、黑暗，与寂静。" },
+        { at: 80.5, text: "一百二十个天文单位，太阳风在这里停住。我们越过日球层顶。" }
+      ] },
+    { at: 88, num: "04", title: "星际航行", year: "2160—2580 年 · 0.002 → 1.6 光年",
+      lines: [
+        { at: 89.5, text: "星际空间。地球在稀薄的气体里撞出一道弓形激波。" },
+        { at: 97.5, text: "四百年。一百代人在冰封的天空下出生。" },
+        { at: 104.5, text: "前方，半人马座 α 一年比一年亮。" }
+      ] },
+    { at: 112, num: "05", title: "银河系", year: "猎户臂 · 距银心 26,700 光年",
+      lines: [
+        { at: 113.0, text: "回头看，整段航程只是几光年长的一条线。" },
+        { at: 120.0, text: "我们的邻里：猎户臂，银河系一条不起眼的旋臂。" },
+        { at: 128.0, text: "而它之外，四千亿颗太阳 —— 银河系。" },
+        { at: 137.5, text: "穿越银河的一小段路，也是一个开始。" }
+      ] },
+    { at: 147, num: "06", title: "新的太阳", year: "4578 年 · 半人马座 α · 4.37 光年",
+      lines: [
+        { at: 148.0, text: "离开之后第二十五个世纪。" },
+        { at: 155.0, text: "半人马座 α。一轮新的太阳。" },
+        { at: 161.5, text: "一百代以来，冰原上第一次有了日光。" },
+        { at: 168.0, text: "流浪的地球，找到了它的港湾。" }
+      ] }
+  ];
+
+  var el = {
+    head: document.getElementById("em-head"),
+    kicker: document.getElementById("em-kicker"),
+    title: document.getElementById("em-title"),
+    year: document.getElementById("em-year"),
+    sub: document.getElementById("em-sub"),
+    fill: document.getElementById("em-fill"),
+    chapter: document.getElementById("em-chapter"),
+    note: document.getElementById("em-note"),
+    clock: document.getElementById("em-clock"),
+    root: document.getElementById("em-boot")
+  };
+
+  var lastSub = "";
+  var lastTitle = "";
+  var lastChapterNum = "";
+  var lastNote = "";
+  var freeHint = null;
+  var started = false;
+  var doneSent = false;
+  var wasFilm = false;
+
+  function fmt(sec) {
+    var s = Math.max(0, Math.floor(sec));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function currentChapter(t) {
+    var found = CH[0];
+    for (var i = 0; i < CH.length; i++) if (t >= CH[i].at) found = CH[i];
+    return found;
+  }
+  function nextChapterAt(ch) {
+    for (var i = 0; i < CH.length; i++) if (CH[i].at > ch.at) return CH[i].at;
+    return 0;
+  }
+
+  /**
+   * 讲解只在「影片模式」里出现；用户点 EXPLORE 或按 F 进入自由查看后才收起。
+   *
+   * 上一版是「pointerdown / wheel / touchstart 任一发生就 takeOver()」，
+   * 结果鼠标轻轻一晃讲解就没了 —— 那是 bug，不是功能。现在不再监听任何鼠标
+   * 事件：入口只有上游自己的 EXPLORE 按钮与 F 键，退出自由查看点 FILM 或 F。
+   */
+  function inFilmMode() {
+    var B = window.__beyond;
+    return !!(B && B.app && B.app.mode !== "free" && B.app.mode !== "intro");
+  }
+
+  function showFreeHint() {
+    if (freeHint === null) {
+      freeHint = document.createElement("div");
+      freeHint.className = "freehint";
+      freeHint.textContent = "自由查看 · 点 FILM 或按 F 回到讲解 · Esc 跳过";
+      el.root.appendChild(freeHint);
+    }
+    freeHint.classList.add("on");
+    setTimeout(function () { if (freeHint) freeHint.classList.remove("on"); }, 8000);
+  }
+
+  function frame() {
+    var B = window.__beyond;
+    if (B && B.app) {
+      var film = inFilmMode();
+      if (wasFilm && !film) showFreeHint();
+      wasFilm = film;
+
+      var t = Math.max(0, Math.min(TOTAL, Number(B.app.t) || 0));
+      var ch = currentChapter(t);
+      var withinChapter = t - ch.at;
+
+      if (film) {
+        var label = ch.num + " · " + ch.title;
+        if (label !== lastTitle) {
+          lastTitle = label;
+          el.kicker.textContent = "联合地球政府 · 流浪地球计划 · 第 " + ch.num + " 章";
+          el.title.textContent = ch.title;
+          el.year.textContent = ch.year;
+        }
+        // 每章开头亮标题，之后把画面让出来
+        el.head.classList.toggle("on", withinChapter < 9);
+
+        var now = "";
+        for (var li = 0; li < ch.lines.length; li++) if (t >= ch.lines[li].at) now = ch.lines[li].text;
+        var chapterEnd = (nextChapterAt(ch) || TOTAL) - 0.8;
+        if (t >= chapterEnd) now = "";
+        if (now !== lastSub) {
+          lastSub = now;
+          el.sub.classList.remove("on");
+          el.sub.textContent = now;
+          if (now.length > 0) requestAnimationFrame(function () { el.sub.classList.add("on"); });
+        }
+
+        el.fill.style.width = (t / TOTAL * 100).toFixed(2) + "%";
+        if (ch.num !== lastChapterNum) {
+          lastChapterNum = ch.num;
+          el.chapter.textContent = "第 " + ch.num + " 章 · " + ch.title;
+        }
+        el.clock.textContent = fmt(t) + " / " + fmt(TOTAL);
+
+        // 音乐被浏览器拦下时明说一次，而不是让人以为「配乐没了」
+        var note = (B.Sound && B.Sound.blocked) ? "点击画面任意处开启声音" : "";
+        if (note !== lastNote) { lastNote = note; el.note.textContent = note; }
+
+        if (!doneSent && t >= TOTAL - 0.6) {
+          doneSent = true;
+          window.__bootGame.done({ game: "beyond-wandering-earth", mode: "walkthrough" });
+        }
+      } else {
+        el.head.classList.remove("on");
+        el.sub.classList.remove("on");
+        lastSub = "";
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /** 自动播放：等它加载完成，再点它自己的「开始旅程」。 */
+  var timer = setInterval(function () {
+    if (started) { clearInterval(timer); return; }
+    if (!window.__emReady || !window.__beyond) return;
+    var b = document.getElementById("b-begin");
+    if (b !== null) { b.click(); started = true; clearInterval(timer); }
+  }, 250);
+  setTimeout(function () {
+    clearInterval(timer);
+    if (!started && window.__beyond) {
+      var b = document.getElementById("b-begin");
+      if (b !== null) b.click();
+      started = true;
+    }
+  }, 30000);
+})();
+</script>
+</body>
+</html>

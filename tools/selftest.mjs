@@ -26,6 +26,7 @@ import {
   BUNDLED_IMAGE,
   BUNDLED_VIDEO,
   DEFAULTS,
+  effectiveMaxSeconds,
   loadSettings,
   normalizeConfig,
   saveSettings,
@@ -199,6 +200,92 @@ await check("the Wandering Earth entry is the vendored 3D scene with a Chinese w
   assert.equal(html.includes("__bootSkip"), true, "no skip relay");
   assert.equal(/https?:\/\//.test(html), false, "the page must not reach the network");
 });
+await check("the Beyond entry ships the whole second scene, offline", () => {
+  assert.ok(GAME_IDS.includes("beyond-wandering-earth"), "beyond-wandering-earth is missing");
+  assert.equal(gameTitle("beyond-wandering-earth").includes("流浪地球"), true);
+  const root = resolve(ROOT, "vendor", "earth-migration");
+  for (const rel of [
+    "beyond-boot.html",
+    "css/beyond.css",
+    "js/boot.js",
+    "js/beyond/main.js",
+    "js/beyond/earth.js",
+    "js/beyond/craft.js",
+    "js/beyond/solar.js",
+    "js/beyond/galaxy.js",
+    "js/beyond/post.js",
+    "js/beyond/story.js",
+    "js/beyond/dash.js",
+    "js/beyond/audio.js",
+    "js/beyond/util.js",
+    // shared with Part I
+    "js/fx/models.js",
+    "js/fx/triplanar.js",
+    // every planet map the solar layer asks for
+    "assets/planets/sun_2k.jpg",
+    "assets/planets/jupiter_4k.jpg",
+    "assets/planets/saturn_ring.png",
+    "assets/planets/earth_day_4k.jpg",
+    "assets/planets/earth_clouds_4k.jpg",
+    // the recorded score the page plays as its music bed
+    "assets/audio/theme.m4a",
+  ]) {
+    assert.equal(existsSync(resolve(root, rel)), true, `missing ${rel}`);
+  }
+  const html = readFileSync(resolve(root, "beyond-boot.html"), "utf8");
+  assert.equal(html.includes("importmap"), true, "no import map: three would not resolve");
+  assert.equal(html.includes("em-boot"), true, "the walkthrough overlay is missing");
+  for (const line of ["流浪的地球", "太阳系", "越过外行星", "星际航行", "银河系", "新的太阳"]) {
+    assert.equal(html.includes(line), true, `missing chapter copy: ${line}`);
+  }
+  // The free camera is still reachable — but through the upstream EXPLORE button
+  // and the F key, not through a listener of our own. The boot layer only reads
+  // __beyond to follow the film clock and announce the free-camera hint.
+  assert.equal(html.includes("window.__beyond"), true, "the page lost the scene handle");
+  assert.equal(html.includes("__bootSkip"), true, "no skip relay");
+  assert.equal(/https?:\/\/fonts|cdn|unpkg/.test(html), false, "the page must not reach a CDN");
+});
+await check("the boot page keeps the upstream dashboards instead of hiding them", () => {
+  const root = resolve(ROOT, "vendor", "earth-migration");
+  const html = readFileSync(resolve(root, "beyond-boot.html"), "utf8");
+  // The status consoles (#dash, #dock, #xdock, #dest, #data, #modes …) are the
+  // look the user asked for. Only the duplicate English cards may be hidden.
+  const hiddenRules = [...html.matchAll(/#[^{}]*\{[^{}]*display\s*:\s*none[^{}]*\}/g)].map((m) => m[0]);
+  const hiddenSelectors = hiddenRules.join(" ");
+  for (const keep of ["#hud", "#dash", "#dock", "#modes", "#dest", "#data", "#brand", "#ladder", "#hotspots"]) {
+    assert.equal(
+      new RegExp(`${keep}[\\s,{]`).test(hiddenSelectors),
+      false,
+      `${keep} is hidden: the telemetry consoles must stay on screen`,
+    );
+  }
+  // Only the upstream title/end screens and the English cards we replace may hide.
+  for (const hide of ["#loader", "#start", "#end", "#card", "#caption", "#count", "#hint"]) {
+    assert.equal(html.includes(hide), true, `${hide} should still be there for main.js to bind`);
+  }
+});
+await check("the boot page narrates in Chinese without a mouse-driven hand-off", () => {
+  const root = resolve(ROOT, "vendor", "earth-migration");
+  const html = readFileSync(resolve(root, "beyond-boot.html"), "utf8");
+  // The bug: a pointerdown/wheel listener switched to the free camera, which
+  // silently killed the narration. Entry must be the upstream EXPLORE / F only,
+  // so this page itself must register no pointer/wheel/touch listener at all.
+  assert.equal(
+    /addEventListener\(\s*["']?(?:pointerdown|pointermove|wheel|touchstart)/.test(html),
+    false,
+    "a mouse listener still hands the camera over and kills the narration",
+  );
+  assert.equal(html.includes("inFilmMode"), true, "the narration is not gated on the film mode");
+  // Every chapter must carry more than one line, or the middle of the film is silent.
+  const chapters = [...html.matchAll(/at:\s*\d+,\s*num:\s*"(\d+)"/g)].length;
+  assert.equal(chapters, 6, `expected 6 chapters, found ${chapters}`);
+  const lines = [...html.matchAll(/\{\s*at:\s*[\d.]+,\s*text:\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(lines.length >= 20, `only ${lines.length} narration lines`);
+  // Chapter 1 used to have a single line for 32 seconds.
+  for (const needle of ["太空电梯", "天枢空间站", "护航舰队"]) {
+    assert.equal(lines.some((l) => l.includes(needle)), true, `chapter 1 is still thin: ${needle}`);
+  }
+});
 await check("an unknown game id is refused", async () => {
   let status = 0;
   await serveGame("nope", { method: "GET", url: "/" }, {
@@ -328,6 +415,77 @@ await check("snake game page is served", () => {
   assert.equal(game.status, 200);
   assert.equal(game.headers.get("content-type"), "text/html; charset=utf-8");
   assert.equal(gameBody.includes("贪吃蛇"), true);
+});
+
+// A directory game must reach its document through a trailing slash, otherwise
+// every relative asset path inside it resolves one level too high and 404s.
+const noSlash = await fetch(`${base}/game/wandering-earth`, { redirect: "manual" });
+await check("a directory game without the trailing slash redirects to it", () => {
+  assert.equal(noSlash.status, 308);
+  assert.equal(noSlash.headers.get("location"), "/boot-animation/game/wandering-earth/");
+});
+const withSlash = await fetch(`${base}/game/wandering-earth/`);
+const withSlashBody = await withSlash.text();
+await check("the same game serves its document at the slashed path", () => {
+  assert.equal(withSlash.status, 200);
+  assert.equal(withSlash.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(withSlashBody.includes("em-boot"), true);
+});
+const queryRedirect = await fetch(`${base}/game/beyond-wandering-earth?x=1`, { redirect: "manual" });
+await check("a query string survives the trailing-slash redirect", () => {
+  assert.equal(queryRedirect.status, 308);
+  assert.equal(queryRedirect.headers.get("location"), "/boot-animation/game/beyond-wandering-earth/?x=1");
+});
+const asset = await fetch(`${base}/game/wandering-earth/assets/earth/earth_day_4096.jpg`);
+await check("a relative asset path resolves to the real texture", () => {
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get("content-type"), "image/jpeg");
+});
+const beyondAsset = await fetch(`${base}/game/beyond-wandering-earth/assets/planets/sun_2k.jpg`);
+await check("the second scene's planet maps resolve as well", () => {
+  assert.equal(beyondAsset.status, 200);
+  assert.equal(beyondAsset.headers.get("content-type"), "image/jpeg");
+});
+
+// ---- preview route ----
+const candidate = Buffer.from(JSON.stringify({ mode: "game", game: "beyond-wandering-earth" }), "utf8")
+  .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const preview = await fetch(`${base}/preview?c=${encodeURIComponent(candidate)}`);
+const previewBody = await preview.text();
+await check("the preview route mounts the real overlay with the candidate settings", () => {
+  assert.equal(preview.status, 200);
+  assert.equal(preview.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(previewBody.includes("dsh-boo550wt-animation-layer"), true, "the overlay is missing");
+  assert.equal(previewBody.includes("preview"), true, "the preview flag is missing");
+  // It must point at the candidate, not at the saved settings.
+  assert.equal(previewBody.includes("/boot-animation/game/beyond-wandering-earth/"), true);
+  assert.equal(previewBody.includes("__bootGameDone"), true, "the preview frame cannot report completion");
+});
+const previewSavesNothing = await (await fetch(`${base}/config`)).json();
+await check("the preview does not save the candidate settings", () => {
+  assert.notEqual(previewSavesNothing.game, "beyond-wandering-earth");
+});
+
+// The hard ceiling is a safety net, never a cut: a 2:54 film must not be
+// truncated by the 120-second default, and the panel's own value must survive.
+const ceilingFor = (next) => normalizeConfig(next);
+await check("a long film raises the ceiling past its own length", () => {
+  const short = effectiveMaxSeconds(ceilingFor({ mode: "game", game: "beyond-wandering-earth" }));
+  assert.ok(short > 174, `the 174-second film would be cut at ${short}s`);
+  const raised = effectiveMaxSeconds(ceilingFor({ mode: "game", game: "beyond-wandering-earth", maxSeconds: 300 }));
+  assert.equal(raised, 300, "a ceiling the user raised by hand must win");
+  const plain = effectiveMaxSeconds(ceilingFor({ mode: "video" }));
+  assert.equal(plain, DEFAULTS.maxSeconds, "non-film modes keep their configured ceiling");
+});
+await check("the effective ceiling is published next to the stored one", async () => {
+  await fetch(`${base}/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "game", game: "beyond-wandering-earth", maxSeconds: 120 }),
+  });
+  const live = await (await fetch(`${base}/config`)).json();
+  assert.equal(live.maxSeconds, 120, "the stored value must stay what the user typed");
+  assert.ok(live.effectiveMaxSeconds > 174, `published ceiling ${live.effectiveMaxSeconds}`);
 });
 
 // ---- uploads ----

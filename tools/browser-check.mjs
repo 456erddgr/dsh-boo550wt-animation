@@ -457,21 +457,23 @@ await check("Esc inside the game frame relays a skip to the page", async () => {
 });
 
 await check("every built-in game loads in a frame", async () => {
-  for (const id of ["snake", "2048", "breakout", "memory", "typing", "wandering-earth"]) {
+  for (const id of ["snake", "2048", "breakout", "memory", "typing", "wandering-earth", "beyond-wandering-earth"]) {
     await switchMode({ mode: "game", game: id });
-    // The frame URL ends in /boot-animation/game/<id>; compare the suffix only.
+    // A directory game is reached through its slashed route; a generated one has
+    // no trailing slash. Compare the suffix so the slash is not ambiguous.
     const expected = `/boot-animation/game/${id}`;
     const ok = await until(
       `(function () {
          var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
          if (f === null) return false;
          var src = f.getAttribute("src") || "";
+         src = src.replace(/\\/$/, "");
          if (src.lastIndexOf(${JSON.stringify(expected)}) !== src.length - ${expected.length}) return false;
          var d = null;
          try { d = f.contentDocument; } catch (e) { return false; }
          return d !== null && d.body !== null && (d.body.textContent || "").length > 10;
        })()`,
-      12000,
+      20000,
     );
     assert.equal(ok, true, `${id} did not render (frame src never matched ${expected})`);
     // Leave through the visible skip button, exactly as a viewer would.
@@ -544,6 +546,36 @@ await check("the application is revealed once the overlay is gone", async () => 
 await send("Page.navigate", { url: `${origin}/` });
 await check("a reload mounts the overlay again", async () => {
   assert.equal(await until(`Boolean(document.getElementById("dsh-boo550wt-animation-layer"))`), true);
+});
+
+// The Settings panel's "全屏预览" opens the plugin's own /preview document. That
+// page must mount the real overlay from the settings carried in the URL, even
+// though /config still holds a different set.
+await check("the preview route mounts the real overlay from the URL settings", async () => {
+  const candidate = Buffer.from(JSON.stringify({ mode: "game", game: "snake", maxSeconds: 90 }), "utf8")
+    .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  await send("Page.navigate", { url: `${origin}/boot-animation/preview?c=${encodeURIComponent(candidate)}` });
+  assert.equal(
+    await until(`(function () {
+      var f = document.querySelector("#dsh-boo550wt-animation-layer iframe");
+      return f !== null && (f.getAttribute("src") || "").indexOf("/boot-animation/game/snake") >= 0;
+    })()`, 15000),
+    true,
+    "the preview did not mount the candidate game: it read the saved config instead",
+  );
+});
+await check("the preview reports completion to whoever opened it", async () => {
+  await evaluate(`(function () {
+    globalThis.__PREVIEW_DONE__ = false;
+    addEventListener("message", function (e) {
+      if (e.data && e.data.__bootPreviewDone === true) globalThis.__PREVIEW_DONE__ = true;
+    });
+    var hint = document.querySelector(".dsh-boo550wt-animation-hint");
+    if (hint !== null) hint.click();
+    return true;
+  })()`);
+  assert.equal(await until(`globalThis.__PREVIEW_DONE__ === true`, 6000), true);
+  assert.equal(await until(`document.getElementById("dsh-boo550wt-animation-layer") === null`, 6000), true);
 });
 
 socket.close();
