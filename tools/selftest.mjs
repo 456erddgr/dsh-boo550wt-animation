@@ -134,6 +134,19 @@ await check("emitted client script is free of unsafe sequences", () => {
   assert.equal(text.includes("<!--"), false);
   assert.equal(text.includes("<"), false);
 });
+await check("every ceiling re-arm cancels the previous timer", () => {
+  // A 2:54 film was cut in half because the bootstrap timer (a 120 s default
+  // from the injected row) survived the re-arm from /config (220 s). Every arm
+  // must now go through one helper that clears the old handle first.
+  const text = bootScript({ base: "/boot-animation", mode: "game", url: "/boot-animation/game/x/", maxSeconds: 120 });
+  assert.equal(text.includes("function armGuard"), true, "no single re-arm helper");
+  const raw = [...text.matchAll(/guard = setTimeout/g)];
+  assert.equal(raw.length, 1, `expected one guarded assignment, found ${raw.length}`);
+  const helper = text.slice(text.indexOf("function armGuard"), text.indexOf("function onMetadata"));
+  assert.equal(helper.includes("clearTimeout(guard)"), true, "the helper does not cancel the old timer");
+  assert.equal(helper.includes("setTimeout(finish"), true, "the helper does not arm a new timer");
+  assert.ok((text.match(/armGuard\(/g) ?? []).length >= 5, "not every path re-arms through the helper");
+});
 
 console.log("games");
 await check("snake page is a full HTML document", () => {
