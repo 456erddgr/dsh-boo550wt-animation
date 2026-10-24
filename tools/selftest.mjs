@@ -447,6 +447,31 @@ await check("the second scene's planet maps resolve as well", () => {
   assert.equal(beyondAsset.headers.get("content-type"), "image/jpeg");
 });
 
+// A media element streams with `Range: bytes=0-` and aborts the whole load when
+// the answer ignores it. The score is 10 MB, so this is what made the film silent.
+const audioHead = await fetch(`${base}/game/beyond-wandering-earth/assets/audio/theme.m4a`, { method: "HEAD" });
+await check("the music bed is served as audio, not as an opaque download", () => {
+  assert.equal(audioHead.status, 200);
+  assert.equal(audioHead.headers.get("content-type"), "audio/mp4");
+  assert.equal(audioHead.headers.get("accept-ranges"), "bytes");
+  assert.ok(Number(audioHead.headers.get("content-length")) > 1_000_000);
+});
+const audioRange = await fetch(`${base}/game/beyond-wandering-earth/assets/audio/theme.m4a`, {
+  headers: { range: "bytes=0-1023" },
+});
+await check("the music bed answers a Range request with 206", async () => {
+  assert.equal(audioRange.status, 206);
+  assert.match(audioRange.headers.get("content-range"), /^bytes 0-1023\/\d+$/u);
+  assert.equal((await audioRange.arrayBuffer()).byteLength, 1024);
+});
+const audioBad = await fetch(`${base}/game/beyond-wandering-earth/assets/audio/theme.m4a`, {
+  headers: { range: "bytes=999999999-" },
+});
+await check("an out-of-range audio request is 416", () => {
+  assert.equal(audioBad.status, 416);
+  assert.match(audioBad.headers.get("content-range"), /^bytes \*\/\d+$/u);
+});
+
 // ---- preview route ----
 const candidate = Buffer.from(JSON.stringify({ mode: "game", game: "beyond-wandering-earth" }), "utf8")
   .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

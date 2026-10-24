@@ -1,6 +1,6 @@
 {
   "name": "dsh-boo550wt-animation",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "description": "Customizable boot animation for DeepSeek Harness: upload your own video, picture or HTML page, play one of five built-in mini games, or watch either Wandering Earth 3D walkthrough (planetary engines, or the full 100 km → 100,000 ly voyage with its telemetry consoles and a recorded score) — and preview any of them from the Settings panel without saving or restarting.",
   "type": "module",

@@ -70,6 +70,8 @@
 
 **音乐**：第二部不再用上游的程序化合成配乐，改为播放内置的一首录音（`assets/audio/theme.m4a`，7 分 05 秒，循环，音量压在解说之下）。Electron 允许无手势自动播放；普通浏览器若拒绝，页面会提示「点击画面任意处开启声音」，点一下即恢复。
 
+> 这条路由必须给 `<audio>` 两样东西，缺一样就哑：**`audio/mp4` 这个 MIME**（早先回落成 `application/octet-stream`，浏览器根本不认），以及 **`Range` 支持**（早先整份 10 MB 一口气倒出去、无视 `bytes=0-`，媒体元素拿到 200 就中止加载）。现在目录型场景的静态服务和视频路由共用同一个 `parseRange`，200 / 206 / 416 三种情形一致。
+
 字幕与进度用**真实时间**驱动，而不是帧累计：渲染被节流或机器较慢时，讲解不会变成慢放。
 
 ```
@@ -209,7 +211,7 @@ plugin --profile desktop remove dsh-boo550wt-animation
 
 | 命令 | 能证明什么 |
 | --- | --- |
-| `node tools/selftest.mjs` | 配置读写、注入行、Range 服务（视频+图片）、七项内置内容与中继、目录游戏的末尾斜杠跳转、贴图真实可达、预览路由不落盘、上传/去重/删除/穿越防护、路由与状态码 —— 53 项 |
+| `node tools/selftest.mjs` | 配置读写、注入行、Range 服务（视频+图片+**配乐 m4a 的 206/416**）、七项内置内容与中继、目录游戏的末尾斜杠跳转、贴图真实可达、预览路由不落盘、上传/去重/删除/穿越防护、路由与状态码 —— 60 项 |
 | `node tools/browser-check.mjs` | 真实 Chromium 里：视频（含**声音未被静音**）/图片/网页/内置 3D 四种模式、**跳过按钮可点、iframe 内 Esc 能转发**、七项内容逐个加载（含两部 3D 场景）、**预览路由用 URL 里的设置挂载真遮罩并回报完成** —— 21 项 |
 | `node tools/screenshots.mjs <绝对路径>/lib/games.js <输出目录>` | 经插件真实路由逐项截图，含两部 3D 场景；每张都开一个干净浏览器，避免 WebGL 上下文串味 |
 | `ELECTRON_RUN_AS_NODE=1 <DeepSeek Harness.exe> --expose-internals tools/verify-install.mjs` | 用 DSH 自己的 profile 加载器验证：bundle 被组合进去了（loaded 而不是 skipped），Host 入口能解析 |
